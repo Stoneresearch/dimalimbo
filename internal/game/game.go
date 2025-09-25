@@ -168,6 +168,26 @@ func (g *Game) Update() error {
 		}
 	case statePlaying:
 		// Player movement
+		// Touch/mouse drag toward target (mobile friendly)
+		if ids := ebiten.TouchIDs(); len(ids) > 0 {
+			x, y := ebiten.TouchPosition(ids[0])
+			tx := float64(x) - (g.player.x + g.player.w*0.5)
+			ty := float64(y) - (g.player.y + g.player.h*0.5)
+			d := math.Hypot(tx, ty)
+			if d > 1 {
+				g.player.x += g.playerVel * (tx / d)
+				g.player.y += g.playerVel * (ty / d)
+			}
+		} else if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+			cx, cy := ebiten.CursorPosition()
+			tx := float64(cx) - (g.player.x + g.player.w*0.5)
+			ty := float64(cy) - (g.player.y + g.player.h*0.5)
+			d := math.Hypot(tx, ty)
+			if d > 1 {
+				g.player.x += g.playerVel * (tx / d)
+				g.player.y += g.playerVel * (ty / d)
+			}
+		}
 		if ebiten.IsKeyPressed(ebiten.KeyArrowUp) || ebiten.IsKeyPressed(ebiten.KeyW) || ebiten.GamepadAxis(0, 1) < -0.2 {
 			g.player.y -= g.playerVel
 		}
@@ -204,6 +224,34 @@ func (g *Game) Update() error {
 				g.spawnEvery -= 4
 			}
 			g.speed += g.cfg.SpeedAccel
+		}
+
+		// particles update (neon trail)
+		aliveP := g.particles[:0]
+		for _, p := range g.particles {
+			p.x += p.vx
+			p.y += p.vy
+			p.vx *= 0.96
+			p.vy *= 0.96
+			p.life--
+			if p.life > 0 {
+				aliveP = append(aliveP, p)
+			}
+		}
+		g.particles = aliveP
+		// spawn a few new particles at the player's center
+		for i := 0; i < 2; i++ {
+			px := g.player.x + g.player.w*0.5
+			py := g.player.y + g.player.h*0.5
+			angle := rand.Float64() * 2 * math.Pi
+			speed := 0.8 + rand.Float64()*0.6
+			g.particles = append(g.particles, particle{
+				x:    px,
+				y:    py,
+				vx:   math.Cos(angle) * speed * -0.6,
+				vy:   math.Sin(angle) * speed * -0.6,
+				life: 28 + rand.Intn(16),
+			})
 		}
 
 		// move obstacles and detect collision
@@ -308,6 +356,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 		ebitenutil.DrawRect(g.offscreen, s.x, s.y, s.w, s.h, color.RGBA{88, 88, 120, 255})
 	}
+	// particle rendering (additive-ish)
+	for _, p := range g.particles {
+		a := uint8(40 + p.life*5)
+		if a > 200 {
+			a = 200
+		}
+		c := color.RGBA{R: 0, G: uint8(180 + rand.Intn(60)), B: 255, A: a}
+		ebitenutil.DrawRect(g.offscreen, p.x-1.5, p.y-1.5, 3, 3, c)
+	}
 	// 3D-ish ground grid
 	horizonY := float64(oh) * 0.65
 	for i := 0; i < 12; i++ {
@@ -327,11 +384,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		// player
 		// shadow
 		ebitenutil.DrawRect(g.offscreen, g.player.x+4, g.player.y+4, g.player.w, g.player.h, color.RGBA{0, 0, 0, 120})
-		ebitenutil.DrawRect(g.offscreen, g.player.x, g.player.y, g.player.w, g.player.h, color.RGBA{0, 255, 200, 255})
+		// neon player with border
+		ebitenutil.DrawRect(g.offscreen, g.player.x-1, g.player.y-1, g.player.w+2, g.player.h+2, color.RGBA{0, 60, 80, 200})
+		ebitenutil.DrawRect(g.offscreen, g.player.x, g.player.y, g.player.w, g.player.h, color.RGBA{0, 255, 220, 255})
 		// obstacles
 		for _, o := range g.obstacles {
 			ebitenutil.DrawRect(g.offscreen, o.x+3, o.y+3, o.w, o.h, color.RGBA{0, 0, 0, 120})
-			ebitenutil.DrawRect(g.offscreen, o.x, o.y, o.w, o.h, color.RGBA{255, 40, 120, 255})
+			// neon outline
+			ebitenutil.DrawRect(g.offscreen, o.x-1, o.y-1, o.w+2, o.h+2, color.RGBA{60, 0, 40, 200})
+			ebitenutil.DrawRect(g.offscreen, o.x, o.y, o.w, o.h, color.RGBA{255, 40, 140, 255})
 		}
 		drawHUD(g, g.cfg.UIScale)
 	case stateNameEntry:
@@ -428,8 +489,15 @@ func drawHUD(g *Game, _ float64) {
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	drawShadowedText(g.offscreen, face, "Score:", 10, 28, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, itoa(g.score), 90, 28, color.White, color.RGBA{40, 40, 40, 255})
+	// responsive margins for small screens
+	left := 10
+	top := 28
+	if g.cfg.UIScale < 1.2 {
+		left = 6
+		top = 22
+	}
+	drawShadowedText(g.offscreen, face, "Score:", left, top, color.White, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, itoa(g.score), left+70, top, color.White, color.RGBA{40, 40, 40, 255})
 }
 
 func drawNameEntry(g *Game, _ float64) {
@@ -437,8 +505,12 @@ func drawNameEntry(g *Game, _ float64) {
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	drawShadowedText(g.offscreen, face, "Game Over! Enter your name:", 160, 220, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, g.nameInput+"_", 220, 264, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
+	baseX := 160
+	if g.cfg.UIScale < 1.2 {
+		baseX = 120
+	}
+	drawShadowedText(g.offscreen, face, "Game Over! Enter your name:", baseX, 220, color.White, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, g.nameInput+"_", baseX+60, 264, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
 }
 
 func drawLeaderboard(g *Game, _ float64) {
@@ -446,15 +518,19 @@ func drawLeaderboard(g *Game, _ float64) {
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	drawShadowedText(g.offscreen, face, "Leaderboard", 300, 100, color.White, color.RGBA{40, 40, 40, 255})
+	titleX := 300
+	if g.cfg.UIScale < 1.2 {
+		titleX = 260
+	}
+	drawShadowedText(g.offscreen, face, "Leaderboard", titleX, 100, color.White, color.RGBA{40, 40, 40, 255})
 	if len(g.leaders) == 0 {
-		drawShadowedText(g.offscreen, face, "No scores yet.", 320, 160, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
+		drawShadowedText(g.offscreen, face, "No scores yet.", titleX+20, 160, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
 	} else {
 		for i, w := range g.leaders {
 			line := itoa(i+1) + ". " + w.Name + " - " + itoa(w.Score)
-			drawShadowedText(g.offscreen, face, line, 220, 160+(i*28), color.RGBA{220, 220, 220, 255}, color.RGBA{40, 40, 40, 255})
+			drawShadowedText(g.offscreen, face, line, titleX-80, 160+(i*28), color.RGBA{220, 220, 220, 255}, color.RGBA{40, 40, 40, 255})
 		}
 	}
-	drawShadowedText(g.offscreen, face, "R: reset leaderboard", 280, 440, color.RGBA{180, 180, 220, 255}, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, "SPACE: title", 280, 468, color.RGBA{200, 200, 200, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, "R: reset leaderboard", titleX-20, 440, color.RGBA{180, 180, 220, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, "SPACE: title", titleX-20, 468, color.RGBA{200, 200, 200, 255}, color.RGBA{40, 40, 40, 255})
 }

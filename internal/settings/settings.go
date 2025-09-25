@@ -38,7 +38,7 @@ type Settings struct {
 func Default() Settings {
 	return Settings{
 		MasterVolume:        0.25,
-		ShaderIntensity:     0.9,
+		ShaderIntensity:     0.7,
 		Palette:             0,
 		Fullscreen:          false,
 		WindowWidth:         1280,
@@ -57,7 +57,7 @@ func Default() Settings {
 		TopN:                10,
 		CacheTTLSeconds:     30,
 		DBPath:              "dimalimbo.db",
-		RenderScale:         1.0,
+		RenderScale:         0.9,
 		LowPower:            false,
 	}
 }
