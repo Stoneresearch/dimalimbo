@@ -258,41 +258,50 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	// draw into offscreen for post-processing
-	if g.offscreen == nil || g.offscreen.Bounds().Dx() != screenWidth || g.offscreen.Bounds().Dy() != screenHeight {
-		g.offscreen = ebiten.NewImage(screenWidth, screenHeight)
-	}
-	g.offscreen.Fill(color.RGBA{R: 6, G: 8, B: 12, A: 255})
+    // dynamic resolution offscreen
+    scale := g.cfg.RenderScale
+    if scale <= 0 || scale > 1.0 { scale = 1.0 }
+    ow := int(float64(screenWidth) * scale)
+    oh := int(float64(screenHeight) * scale)
+    if ow < 320 { ow = 320 }
+    if oh < 240 { oh = 240 }
+    if g.offscreen == nil || g.offscreen.Bounds().Dx() != ow || g.offscreen.Bounds().Dy() != oh {
+        g.offscreen = ebiten.NewImage(ow, oh)
+    }
+    g.offscreen.Fill(color.RGBA{R: 6, G: 8, B: 12, A: 255})
 
 	// parallax background
-	for i := range g.starsFar {
+    stepFar := 1
+    stepNear := 1
+    if g.cfg.LowPower { stepFar, stepNear = 2, 2 }
+    for i := 0; i < len(g.starsFar); i += stepFar {
 		s := &g.starsFar[i]
 		s.x -= 0.3
-		if s.x < 0 {
-			s.x = screenWidth
-			s.y = float64(rand.Intn(screenHeight))
+        if s.x < 0 {
+            s.x = float64(ow)
+            s.y = float64(rand.Intn(oh))
 		}
 		ebitenutil.DrawRect(g.offscreen, s.x, s.y, s.w, s.h, color.RGBA{40, 40, 60, 255})
 	}
-	for i := range g.starsNear {
+    for i := 0; i < len(g.starsNear); i += stepNear {
 		s := &g.starsNear[i]
 		s.x -= 0.8
-		if s.x < 0 {
-			s.x = screenWidth
-			s.y = float64(rand.Intn(screenHeight))
+        if s.x < 0 {
+            s.x = float64(ow)
+            s.y = float64(rand.Intn(oh))
 		}
 		ebitenutil.DrawRect(g.offscreen, s.x, s.y, s.w, s.h, color.RGBA{88, 88, 120, 255})
 	}
 	// 3D-ish ground grid
-	horizonY := float64(screenHeight) * 0.65
+    horizonY := float64(oh) * 0.65
 	for i := 0; i < 12; i++ {
 		t := float64(i) / 11.0
-		x := t * float64(screenWidth)
-		ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5), float64(screenHeight), color.RGBA{30, 30, 50, 180})
+        x := t * float64(ow)
+        ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5), float64(oh), color.RGBA{30, 30, 50, 180})
 	}
 	for r := 0; r < 10; r++ {
 		y := horizonY + float64(r*r)*6
-		ebitenutil.DrawLine(g.offscreen, 0, y, float64(screenWidth), y, color.RGBA{30, 30, 50, 160})
+        ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{30, 30, 50, 160})
 	}
 
 	switch g.state {
@@ -315,20 +324,21 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		drawLeaderboard(g, g.cfg.UIScale)
 	}
 
-	// post-process
-	if g.shader != nil && g.shaderOn {
-		opts := &ebiten.DrawRectShaderOptions{}
-		opts.Images[0] = g.offscreen
-		opts.Uniforms = map[string]interface{}{
-			"time":       float32(g.frames) / 60.0,
-			"intensity":  g.shaderInt,
-			"resolution": []float32{float32(screenWidth), float32(screenHeight)},
-		}
-		screen.DrawRectShader(screenWidth, screenHeight, g.shader, opts)
-	} else {
-		op := &ebiten.DrawImageOptions{}
-		screen.DrawImage(g.offscreen, op)
-	}
+    // post-process and upscale
+    op := &ebiten.DrawImageOptions{}
+    op.GeoM.Scale(float64(screenWidth)/float64(ow), float64(screenHeight)/float64(oh))
+    if g.shader != nil && g.shaderOn && !g.cfg.LowPower {
+        opts := &ebiten.DrawRectShaderOptions{}
+        opts.Images[0] = g.offscreen
+        opts.Uniforms = map[string]interface{}{
+            "time":       float32(g.frames) / 60.0,
+            "intensity":  g.shaderInt,
+            "resolution": []float32{float32(ow), float32(oh)},
+        }
+        screen.DrawRectShader(screenWidth, screenHeight, g.shader, opts)
+    } else {
+        screen.DrawImage(g.offscreen, op)
+    }
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {

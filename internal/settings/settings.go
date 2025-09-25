@@ -30,6 +30,9 @@ type Settings struct {
 	TopN            int    `json:"topN"`
 	CacheTTLSeconds int    `json:"cacheTTLSeconds"`
 	DBPath          string `json:"dbPath"`
+	// Performance
+	RenderScale float64 `json:"renderScale"`
+	LowPower    bool    `json:"lowPower"`
 }
 
 func Default() Settings {
@@ -54,6 +57,8 @@ func Default() Settings {
 		TopN:                10,
 		CacheTTLSeconds:     30,
 		DBPath:              "dimalimbo.db",
+		RenderScale:         1.0,
+		LowPower:            false,
 	}
 }
 
