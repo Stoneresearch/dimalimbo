@@ -14,6 +14,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 
 	"github.com/stoneresearch/dimalimbo/internal/assets"
@@ -120,10 +121,11 @@ func New(store *storage.Storage, cfg settings.Settings) *Game {
 		if ferr == nil {
 			g.titleFace = face
 		}
-		// medium UI face for leaderboard and HUD
+	}
+	// medium UI face for leaderboard and HUD (use Regular for legibility)
+	if fr, err := opentype.Parse(goregular.TTF); err == nil {
 		uiSize := 22.0 * cfg.UIScale
-		uiFace, uerr := opentype.NewFace(f, &opentype.FaceOptions{Size: uiSize, DPI: 72, Hinting: font.HintingFull})
-		if uerr == nil {
+		if uiFace, uerr := opentype.NewFace(fr, &opentype.FaceOptions{Size: uiSize, DPI: 72, Hinting: font.HintingFull}); uerr == nil {
 			g.uiFace = uiFace
 		}
 	}
@@ -365,21 +367,20 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		c := color.RGBA{R: 0, G: uint8(180 + rand.Intn(60)), B: 255, A: a}
 		ebitenutil.DrawRect(g.offscreen, p.x-1.5, p.y-1.5, 3, 3, c)
 	}
-	// 3D-ish ground grid
+	// 3D-ish ground grid (slight animation)
 	horizonY := float64(oh) * 0.65
+	wobble := math.Sin(float64(g.frames) * 0.02)
 	for i := 0; i < 12; i++ {
 		t := float64(i) / 11.0
 		x := t * float64(ow)
-		ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5), float64(oh), color.RGBA{36, 36, 70, 180})
+		ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5+wobble*0.02), float64(oh), color.RGBA{36, 36, 70, 180})
 	}
 	for r := 0; r < 10; r++ {
-		y := horizonY + float64(r*r)*6
+		y := horizonY + float64(r*r)*6 + wobble*2
 		ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{36, 36, 70, 160})
 	}
 
 	switch g.state {
-	case stateTitle:
-		drawTitle(g, g.cfg.UIScale)
 	case statePlaying:
 		// player
 		// shadow
@@ -394,11 +395,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			ebitenutil.DrawRect(g.offscreen, o.x-1, o.y-1, o.w+2, o.h+2, color.RGBA{60, 0, 40, 200})
 			ebitenutil.DrawRect(g.offscreen, o.x, o.y, o.w, o.h, color.RGBA{255, 40, 140, 255})
 		}
-		drawHUD(g, g.cfg.UIScale)
-	case stateNameEntry:
-		drawNameEntry(g, g.cfg.UIScale)
-	case stateLeaderboard:
-		drawLeaderboard(g, g.cfg.UIScale)
+	case stateTitle, stateNameEntry, stateLeaderboard:
+		// defer UI drawing to after post-processing
 	}
 
 	// post-process and upscale
@@ -415,6 +413,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screen.DrawRectShader(screenWidth, screenHeight, g.shader, opts)
 	} else {
 		screen.DrawImage(g.offscreen, op)
+	}
+
+	// UI pass AFTER post-processing for crisp text and spacing
+	switch g.state {
+	case stateTitle:
+		drawTitleUI(g, screen)
+	case statePlaying:
+		drawHUDUI(g, screen)
+	case stateNameEntry:
+		drawNameEntryUI(g, screen)
+	case stateLeaderboard:
+		drawLeaderboardUI(g, screen)
 	}
 }
 
@@ -451,7 +461,7 @@ func drawShadowedText(dst *ebiten.Image, face font.Face, s string, x, y int, fg,
 	text.Draw(dst, s, face, x, y, fg)
 }
 
-func drawTitle(g *Game, _ float64) {
+func drawTitleUI(g *Game, dst *ebiten.Image) {
 	face := g.titleFace
 	if face == nil {
 		face = basicfont.Face7x13
@@ -478,29 +488,35 @@ func drawTitle(g *Game, _ float64) {
 		cb := uint8(180 + 75*math.Sin(phase+4.188))
 		fg := color.RGBA{cr, cg, cb, 255}
 		shadow := color.RGBA{20, 20, 40, 200}
-		drawShadowedText(g.offscreen, face, string(r), x, y, fg, shadow)
+		drawShadowedText(dst, face, string(r), x, y, fg, shadow)
 	}
 	promptFace := basicfont.Face7x13
-	drawShadowedText(g.offscreen, promptFace, "Press SPACE to start", (screenWidth-220)/2, baseY+80, color.RGBA{180, 255, 220, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, promptFace, "Press SPACE to start", (screenWidth-220)/2, baseY+80, color.RGBA{180, 255, 220, 255}, color.RGBA{40, 40, 40, 255})
 }
 
-func drawHUD(g *Game, _ float64) {
+func drawHUDUI(g *Game, dst *ebiten.Image) {
 	face := g.uiFace
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	// responsive margins for small screens
+	// responsive margins for small screens and measured spacing
 	left := 10
 	top := 28
 	if g.cfg.UIScale < 1.2 {
 		left = 6
 		top = 22
 	}
-	drawShadowedText(g.offscreen, face, "Score:", left, top, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, itoa(g.score), left+70, top, color.White, color.RGBA{40, 40, 40, 255})
+	label := "Score:"
+	lb := text.BoundString(face, label)
+	labelW := lb.Dx()
+	if labelW < 0 {
+		labelW = 0
+	}
+	drawShadowedText(dst, face, label, left, top, color.White, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, face, itoa(g.score), left+labelW+8, top, color.White, color.RGBA{40, 40, 40, 255})
 }
 
-func drawNameEntry(g *Game, _ float64) {
+func drawNameEntryUI(g *Game, dst *ebiten.Image) {
 	face := g.uiFace
 	if face == nil {
 		face = basicfont.Face7x13
@@ -509,11 +525,11 @@ func drawNameEntry(g *Game, _ float64) {
 	if g.cfg.UIScale < 1.2 {
 		baseX = 120
 	}
-	drawShadowedText(g.offscreen, face, "Game Over! Enter your name:", baseX, 220, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, g.nameInput+"_", baseX+60, 264, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, face, "Game Over! Enter your name:", baseX, 220, color.White, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, face, g.nameInput+"_", baseX+60, 264, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
 }
 
-func drawLeaderboard(g *Game, _ float64) {
+func drawLeaderboardUI(g *Game, dst *ebiten.Image) {
 	face := g.uiFace
 	if face == nil {
 		face = basicfont.Face7x13
@@ -522,15 +538,15 @@ func drawLeaderboard(g *Game, _ float64) {
 	if g.cfg.UIScale < 1.2 {
 		titleX = 260
 	}
-	drawShadowedText(g.offscreen, face, "Leaderboard", titleX, 100, color.White, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, face, "Leaderboard", titleX, 100, color.White, color.RGBA{40, 40, 40, 255})
 	if len(g.leaders) == 0 {
-		drawShadowedText(g.offscreen, face, "No scores yet.", titleX+20, 160, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
+		drawShadowedText(dst, face, "No scores yet.", titleX+20, 160, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
 	} else {
 		for i, w := range g.leaders {
 			line := itoa(i+1) + ". " + w.Name + " - " + itoa(w.Score)
-			drawShadowedText(g.offscreen, face, line, titleX-80, 160+(i*28), color.RGBA{220, 220, 220, 255}, color.RGBA{40, 40, 40, 255})
+			drawShadowedText(dst, face, line, titleX-80, 160+(i*28), color.RGBA{220, 220, 220, 255}, color.RGBA{40, 40, 40, 255})
 		}
 	}
-	drawShadowedText(g.offscreen, face, "R: reset leaderboard", titleX-20, 440, color.RGBA{180, 180, 220, 255}, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, "SPACE: title", titleX-20, 468, color.RGBA{200, 200, 200, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, face, "R: reset leaderboard", titleX-20, 440, color.RGBA{180, 180, 220, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, face, "SPACE: title", titleX-20, 468, color.RGBA{200, 200, 200, 255}, color.RGBA{40, 40, 40, 255})
 }
