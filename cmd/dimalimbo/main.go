@@ -1,13 +1,13 @@
 package main
 
 import (
-	"log"
-	"time"
+    "log"
+    "time"
 
-	"github.com/aal/dimalimbo/internal/game"
-	"github.com/aal/dimalimbo/internal/settings"
-	"github.com/aal/dimalimbo/internal/storage"
-	"github.com/hajimehoshi/ebiten/v2"
+    "github.com/stoneresearch/dimalimbo/internal/game"
+    "github.com/stoneresearch/dimalimbo/internal/settings"
+    "github.com/stoneresearch/dimalimbo/internal/storage"
+    "github.com/hajimehoshi/ebiten/v2"
 )
 
 func main() {

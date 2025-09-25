@@ -1,4 +1,4 @@
-module github.com/aal/dimalimbo
+module github.com/stoneresearch/dimalimbo
 
 go 1.23.3
 

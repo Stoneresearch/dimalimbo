@@ -8,8 +8,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/aal/dimalimbo/internal/cache"
-	"github.com/aal/dimalimbo/internal/model"
+    "github.com/stoneresearch/dimalimbo/internal/cache"
+    "github.com/stoneresearch/dimalimbo/internal/model"
 )
 
 type Storage struct {

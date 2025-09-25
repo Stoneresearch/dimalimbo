@@ -2,6 +2,7 @@ package game
 
 import (
 	"image/color"
+	"math"
 	"math/rand"
 	"strings"
 	"time"
@@ -15,11 +16,11 @@ import (
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/opentype"
 
-	"github.com/aal/dimalimbo/internal/assets"
-	aud "github.com/aal/dimalimbo/internal/audio"
-	"github.com/aal/dimalimbo/internal/model"
-	"github.com/aal/dimalimbo/internal/settings"
-	"github.com/aal/dimalimbo/internal/storage"
+	"github.com/stoneresearch/dimalimbo/internal/assets"
+	aud "github.com/stoneresearch/dimalimbo/internal/audio"
+	"github.com/stoneresearch/dimalimbo/internal/model"
+	"github.com/stoneresearch/dimalimbo/internal/settings"
+	"github.com/stoneresearch/dimalimbo/internal/storage"
 )
 
 const (
@@ -364,9 +365,36 @@ func drawShadowedText(dst *ebiten.Image, face font.Face, s string, x, y int, fg,
 }
 
 func drawTitle(g *Game, _ float64) {
-	face := basicfont.Face7x13
-	drawShadowedText(g.offscreen, face, "DIMA LIMBO VOL.1", 180, 180, color.White, color.RGBA{60, 60, 60, 255})
-	drawShadowedText(g.offscreen, face, "Press SPACE to start", 220, 220, color.RGBA{180, 255, 220, 255}, color.RGBA{40, 40, 40, 255})
+	face := g.titleFace
+	if face == nil {
+		face = basicfont.Face7x13
+	}
+	title := "DIMA LIMBO VOL.1"
+	runes := []rune(title)
+	spacing := 28
+	if face != basicfont.Face7x13 {
+		spacing = int(18 * g.cfg.UIScale)
+	}
+	total := spacing * (len(runes) - 1)
+	startX := (screenWidth - total) / 2
+	baseY := (screenHeight * 28) / 100
+	amp := 24.0 * g.cfg.UIScale
+	n := float64(len(runes))
+	for i, r := range runes {
+		t := float64(i) / math.Max(1, n-1)
+		angle := (t - 0.5) * math.Pi
+		y := baseY + int(math.Sin(angle)*amp)
+		x := startX + i*spacing
+		phase := float64(g.frames)/30.0 + t*2*math.Pi
+		cr := uint8(180 + 75*math.Sin(phase))
+		cg := uint8(180 + 75*math.Sin(phase+2.094))
+		cb := uint8(180 + 75*math.Sin(phase+4.188))
+		fg := color.RGBA{cr, cg, cb, 255}
+		shadow := color.RGBA{20, 20, 40, 200}
+		drawShadowedText(g.offscreen, face, string(r), x, y, fg, shadow)
+	}
+	promptFace := basicfont.Face7x13
+	drawShadowedText(g.offscreen, promptFace, "Press SPACE to start", (screenWidth-220)/2, baseY+80, color.RGBA{180, 255, 220, 255}, color.RGBA{40, 40, 40, 255})
 }
 
 func drawHUD(g *Game, _ float64) {

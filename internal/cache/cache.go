@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aal/dimalimbo/internal/model"
+    "github.com/stoneresearch/dimalimbo/internal/model"
 )
 
 type cachedItem struct {
