@@ -1,0 +1,15 @@
+# Binaries
+/dimalimbo
+
+# Local DB
+/dimalimbo.db
+
+# Go build cache
+/.gocache/
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/
+
+
