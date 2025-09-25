@@ -77,6 +77,7 @@ type Game struct {
 	cfg settings.Settings
 	// fonts
 	titleFace font.Face
+	uiFace    font.Face
 }
 
 type particle struct {
@@ -118,6 +119,12 @@ func New(store *storage.Storage, cfg settings.Settings) *Game {
 		face, ferr := opentype.NewFace(f, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
 		if ferr == nil {
 			g.titleFace = face
+		}
+		// medium UI face for leaderboard and HUD
+		uiSize := 22.0 * cfg.UIScale
+		uiFace, uerr := opentype.NewFace(f, &opentype.FaceOptions{Size: uiSize, DPI: 72, Hinting: font.HintingFull})
+		if uerr == nil {
+			g.uiFace = uiFace
 		}
 	}
 	return g
@@ -258,50 +265,58 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-    // dynamic resolution offscreen
-    scale := g.cfg.RenderScale
-    if scale <= 0 || scale > 1.0 { scale = 1.0 }
-    ow := int(float64(screenWidth) * scale)
-    oh := int(float64(screenHeight) * scale)
-    if ow < 320 { ow = 320 }
-    if oh < 240 { oh = 240 }
-    if g.offscreen == nil || g.offscreen.Bounds().Dx() != ow || g.offscreen.Bounds().Dy() != oh {
-        g.offscreen = ebiten.NewImage(ow, oh)
-    }
-    g.offscreen.Fill(color.RGBA{R: 6, G: 8, B: 12, A: 255})
+	// dynamic resolution offscreen
+	scale := g.cfg.RenderScale
+	if scale <= 0 || scale > 1.0 {
+		scale = 1.0
+	}
+	ow := int(float64(screenWidth) * scale)
+	oh := int(float64(screenHeight) * scale)
+	if ow < 320 {
+		ow = 320
+	}
+	if oh < 240 {
+		oh = 240
+	}
+	if g.offscreen == nil || g.offscreen.Bounds().Dx() != ow || g.offscreen.Bounds().Dy() != oh {
+		g.offscreen = ebiten.NewImage(ow, oh)
+	}
+	g.offscreen.Fill(color.RGBA{R: 6, G: 8, B: 12, A: 255})
 
 	// parallax background
-    stepFar := 1
-    stepNear := 1
-    if g.cfg.LowPower { stepFar, stepNear = 2, 2 }
-    for i := 0; i < len(g.starsFar); i += stepFar {
+	stepFar := 1
+	stepNear := 1
+	if g.cfg.LowPower {
+		stepFar, stepNear = 2, 2
+	}
+	for i := 0; i < len(g.starsFar); i += stepFar {
 		s := &g.starsFar[i]
 		s.x -= 0.3
-        if s.x < 0 {
-            s.x = float64(ow)
-            s.y = float64(rand.Intn(oh))
+		if s.x < 0 {
+			s.x = float64(ow)
+			s.y = float64(rand.Intn(oh))
 		}
 		ebitenutil.DrawRect(g.offscreen, s.x, s.y, s.w, s.h, color.RGBA{40, 40, 60, 255})
 	}
-    for i := 0; i < len(g.starsNear); i += stepNear {
+	for i := 0; i < len(g.starsNear); i += stepNear {
 		s := &g.starsNear[i]
 		s.x -= 0.8
-        if s.x < 0 {
-            s.x = float64(ow)
-            s.y = float64(rand.Intn(oh))
+		if s.x < 0 {
+			s.x = float64(ow)
+			s.y = float64(rand.Intn(oh))
 		}
 		ebitenutil.DrawRect(g.offscreen, s.x, s.y, s.w, s.h, color.RGBA{88, 88, 120, 255})
 	}
 	// 3D-ish ground grid
-    horizonY := float64(oh) * 0.65
+	horizonY := float64(oh) * 0.65
 	for i := 0; i < 12; i++ {
 		t := float64(i) / 11.0
-        x := t * float64(ow)
-        ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5), float64(oh), color.RGBA{30, 30, 50, 180})
+		x := t * float64(ow)
+		ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5), float64(oh), color.RGBA{30, 30, 50, 180})
 	}
 	for r := 0; r < 10; r++ {
 		y := horizonY + float64(r*r)*6
-        ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{30, 30, 50, 160})
+		ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{30, 30, 50, 160})
 	}
 
 	switch g.state {
@@ -324,21 +339,21 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		drawLeaderboard(g, g.cfg.UIScale)
 	}
 
-    // post-process and upscale
-    op := &ebiten.DrawImageOptions{}
-    op.GeoM.Scale(float64(screenWidth)/float64(ow), float64(screenHeight)/float64(oh))
-    if g.shader != nil && g.shaderOn && !g.cfg.LowPower {
-        opts := &ebiten.DrawRectShaderOptions{}
-        opts.Images[0] = g.offscreen
-        opts.Uniforms = map[string]interface{}{
-            "time":       float32(g.frames) / 60.0,
-            "intensity":  g.shaderInt,
-            "resolution": []float32{float32(ow), float32(oh)},
-        }
-        screen.DrawRectShader(screenWidth, screenHeight, g.shader, opts)
-    } else {
-        screen.DrawImage(g.offscreen, op)
-    }
+	// post-process and upscale
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(float64(screenWidth)/float64(ow), float64(screenHeight)/float64(oh))
+	if g.shader != nil && g.shaderOn && !g.cfg.LowPower {
+		opts := &ebiten.DrawRectShaderOptions{}
+		opts.Images[0] = g.offscreen
+		opts.Uniforms = map[string]interface{}{
+			"time":       float32(g.frames) / 60.0,
+			"intensity":  g.shaderInt,
+			"resolution": []float32{float32(ow), float32(oh)},
+		}
+		screen.DrawRectShader(screenWidth, screenHeight, g.shader, opts)
+	} else {
+		screen.DrawImage(g.offscreen, op)
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -408,28 +423,37 @@ func drawTitle(g *Game, _ float64) {
 }
 
 func drawHUD(g *Game, _ float64) {
-	face := basicfont.Face7x13
-	drawShadowedText(g.offscreen, face, "Score:", 10, 24, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, itoa(g.score), 70, 24, color.White, color.RGBA{40, 40, 40, 255})
+	face := g.uiFace
+	if face == nil {
+		face = basicfont.Face7x13
+	}
+	drawShadowedText(g.offscreen, face, "Score:", 10, 28, color.White, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, itoa(g.score), 90, 28, color.White, color.RGBA{40, 40, 40, 255})
 }
 
 func drawNameEntry(g *Game, _ float64) {
-	face := basicfont.Face7x13
-	drawShadowedText(g.offscreen, face, "Game Over! Enter your name:", 180, 220, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, g.nameInput+"_", 220, 260, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
+	face := g.uiFace
+	if face == nil {
+		face = basicfont.Face7x13
+	}
+	drawShadowedText(g.offscreen, face, "Game Over! Enter your name:", 160, 220, color.White, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, g.nameInput+"_", 220, 264, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
 }
 
 func drawLeaderboard(g *Game, _ float64) {
-	face := basicfont.Face7x13
+	face := g.uiFace
+	if face == nil {
+		face = basicfont.Face7x13
+	}
 	drawShadowedText(g.offscreen, face, "Leaderboard", 300, 100, color.White, color.RGBA{40, 40, 40, 255})
 	if len(g.leaders) == 0 {
-		drawShadowedText(g.offscreen, face, "No scores yet.", 320, 140, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
+		drawShadowedText(g.offscreen, face, "No scores yet.", 320, 160, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
 	} else {
 		for i, w := range g.leaders {
 			line := itoa(i+1) + ". " + w.Name + " - " + itoa(w.Score)
-			drawShadowedText(g.offscreen, face, line, 260, 140+(i*24), color.RGBA{220, 220, 220, 255}, color.RGBA{40, 40, 40, 255})
+			drawShadowedText(g.offscreen, face, line, 220, 160+(i*28), color.RGBA{220, 220, 220, 255}, color.RGBA{40, 40, 40, 255})
 		}
 	}
-	drawShadowedText(g.offscreen, face, "R: reset leaderboard", 300, 420, color.RGBA{180, 180, 220, 255}, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(g.offscreen, face, "SPACE: title", 300, 444, color.RGBA{200, 200, 200, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, "R: reset leaderboard", 280, 440, color.RGBA{180, 180, 220, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(g.offscreen, face, "SPACE: title", 280, 468, color.RGBA{200, 200, 200, 255}, color.RGBA{40, 40, 40, 255})
 }

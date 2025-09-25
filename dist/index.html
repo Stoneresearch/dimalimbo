@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DIMA LIMBO VOL.1</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #0a0b10; color: #e6e6e6; font-family: system-ui, sans-serif; }
+      #root { display: grid; place-items: center; height: 100%; }
+      canvas { image-rendering: pixelated; }
+      .loading { opacity: .8; font-size: 14px; }
+      a { color: #8be9fd; }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading">Loading DIMA LIMBO VOL.1...</div>
+    </div>
+    <script src="wasm_exec.js"></script>
+    <script>
+      if (!WebAssembly.instantiateStreaming) {
+        WebAssembly.instantiateStreaming = async (resp, importObject) => {
+          const source = await (await resp).arrayBuffer();
+          return await WebAssembly.instantiate(source, importObject);
+        };
+      }
+      const go = new Go();
+      WebAssembly.instantiateStreaming(fetch("dimalimbo.wasm"), go.importObject)
+        .then(result => go.run(result.instance))
+        .catch(err => {
+          document.getElementById('root').innerHTML = `<div>WebAssembly failed to load. ${String(err)}<br/>Try a modern browser (Chrome/Firefox/Safari).</div>`;
+          console.error(err);
+        });
+    </script>
+  </body>
+  </html>
+
+
