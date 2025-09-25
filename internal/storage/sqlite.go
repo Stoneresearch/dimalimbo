@@ -11,8 +11,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-    "github.com/stoneresearch/dimalimbo/internal/cache"
-    "github.com/stoneresearch/dimalimbo/internal/model"
+	"github.com/stoneresearch/dimalimbo/internal/cache"
+	"github.com/stoneresearch/dimalimbo/internal/model"
 )
 
 type Storage struct {

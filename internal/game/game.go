@@ -281,7 +281,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.offscreen == nil || g.offscreen.Bounds().Dx() != ow || g.offscreen.Bounds().Dy() != oh {
 		g.offscreen = ebiten.NewImage(ow, oh)
 	}
-	g.offscreen.Fill(color.RGBA{R: 6, G: 8, B: 12, A: 255})
+	// modernized background tint
+	g.offscreen.Fill(color.RGBA{R: 8, G: 10, B: 18, A: 255})
 
 	// parallax background
 	stepFar := 1
@@ -312,11 +313,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for i := 0; i < 12; i++ {
 		t := float64(i) / 11.0
 		x := t * float64(ow)
-		ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5), float64(oh), color.RGBA{30, 30, 50, 180})
+		ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5), float64(oh), color.RGBA{36, 36, 70, 180})
 	}
 	for r := 0; r < 10; r++ {
 		y := horizonY + float64(r*r)*6
-		ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{30, 30, 50, 160})
+		ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{36, 36, 70, 160})
 	}
 
 	switch g.state {
