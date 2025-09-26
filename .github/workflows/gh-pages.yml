@@ -27,8 +27,6 @@ jobs:
           if [ -f web/dimbo-spider-logo.jpg ]; then cp web/dimbo-spider-logo.jpg dist/dimbo-spider-logo.jpg; fi
           cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" dist/wasm_exec.js
           GOOS=js GOARCH=wasm go build -o dist/dimalimbo.wasm ./cmd/dimalimbo
-          # write CNAME if custom domain variable provided
-          if [ -n "${{ vars.PAGES_CUSTOM_DOMAIN }}" ]; then echo "${{ vars.PAGES_CUSTOM_DOMAIN }}" > dist/CNAME; fi
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
