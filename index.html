@@ -1,93 +1,11 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DIMBO - A Dark Journey</title>
-    <style>
-      html, body { height: 100%; margin: 0; background: #080808; color: #c0c0c0; font-family: system-ui, sans-serif; }
-      #root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-      /* Ensure Ebiten canvas fills the viewport while preserving pixel look */
-      #ebiten-canvas, canvas { width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; display: block; }
-      canvas { image-rendering: pixelated; }
-      .loading { opacity: .8; font-size: 14px; }
-      a { color: #8be9fd; }
-      /* Splash */
-      #splash { position: fixed; inset: 0; display: grid; place-items: center; background: #0a0a0a; z-index: 2; }
-      #splash .bg { position:absolute; inset:0; background: center/contain no-repeat url('dimbo-spider-logo.jpg'); filter: brightness(0.9); }
-      #splash .content { position:relative; text-align:center; }
-      #splash h1 { margin: 0 0 16px; letter-spacing: 4px; font-weight: 800; font-size: 40px; }
-      #play { padding: 12px 24px; border-radius: 4px; border: 2px solid #404040; background: #1a1a1a; color: #c0c0c0; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.8); transition: all 0.3s; }
-      #play:hover { background: #2a2a2a; border-color: #606060; }
-    </style>
-  </head>
-  <body>
-    <div id="root"><div class="loading">Loading DIMBO...</div></div>
-    <div id="splash">
-      <div class="bg"></div>
-      <div class="content">
-        <h1>DIMBO</h1>
-        <p style="margin: 0 0 24px; opacity: 0.7; font-size: 16px;">A dark journey awaits</p>
-        <button id="play">Enter the Darkness</button>
-      </div>
-    </div>
-    <div id="orientation-hint" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1;color:#e6e6e6;font-family:system-ui,sans-serif;background:rgba(10,11,16,.0);pointer-events:none;">
-      <div style="text-align:center;opacity:.85">Rotate your device for a better experience</div>
-    </div>
-    <script src="wasm_exec.js"></script>
-    <script>
-      const startGame = async () => {
-        try {
-          if (!('WebAssembly' in window)) {
-            throw new Error('WebAssembly not supported in this browser');
-          }
-          // Polyfill instantiateStreaming if server doesn't set correct MIME type
-          if (!WebAssembly.instantiateStreaming) {
-            WebAssembly.instantiateStreaming = async (resp, importObject) => {
-              const source = await (await resp).arrayBuffer();
-              return await WebAssembly.instantiate(source, importObject);
-            };
-          }
-          const go = new Go();
-          const wasmUrl = 'dimalimbo.wasm';
-          // HEAD first to detect 404 early and provide better error
-          const head = await fetch(wasmUrl, { method: 'HEAD' });
-          if (!head.ok) {
-            throw new Error(`WASM not found (${head.status}). Ensure ${wasmUrl} is deployed alongside index.html`);
-          }
-          const result = await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject).catch(async e => {
-            // Fallback to arrayBuffer path (e.g., wrong MIME type on GH Pages)
-            console.warn('instantiateStreaming failed, retrying with arrayBuffer', e);
-            const res = await fetch(wasmUrl);
-            if (!res.ok) throw new Error(`Failed fetching WASM: ${res.status}`);
-            const bytes = await res.arrayBuffer();
-            return await WebAssembly.instantiate(bytes, go.importObject);
-          });
-          // Remove loading overlay so canvas can receive input
-          const root = document.getElementById('root');
-          if (root) root.style.display = 'none';
-          const splash = document.getElementById('splash');
-          if (splash) splash.style.display = 'none';
-          // Orientation hint
-          const hint = document.getElementById('orientation-hint');
-          const updateHint = () => {
-            const portrait = window.matchMedia('(orientation: portrait)').matches;
-            hint.style.display = portrait ? 'flex' : 'none';
-          };
-          updateHint();
-          window.addEventListener('resize', updateHint);
-          await go.run(result.instance);
-        } catch (err) {
-          const msg = `WebAssembly failed to load: ${String(err)}<br/>`+
-            `If this is GitHub Pages, verify that index.html, wasm_exec.js, and dimalimbo.wasm are in the same folder.`;
-          document.getElementById('root').innerHTML = `<div class="loading">${msg}</div>`;
-          console.error(err);
-        }
-      };
-      // Start only when user clicks Play (reduces initial load and shows your hero art)
-      document.getElementById('play').addEventListener('click', startGame);
-    </script>
-  </body>
-  </html>
-
-
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DIMBO Test</title>
+</head>
+<body style="background: #000; color: #fff; font-family: Arial;">
+    <h1>🕷️ DIMBO Test Page</h1>
+    <p>If you see this, GitHub Pages is working!</p>
+    <p>Spider logo should appear next.</p>
+</body>
+</html>
