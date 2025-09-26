@@ -18,9 +18,8 @@ func main() {
 	}
 
 	g := game.New(store, cfg)
-	if cfg.Fullscreen {
-		ebiten.SetFullscreen(true)
-	}
+	// Force fullscreen at startup; user can toggle with F
+	ebiten.SetFullscreen(cfg.Fullscreen)
 	if cfg.WindowWidth > 0 && cfg.WindowHeight > 0 {
 		ebiten.SetWindowSize(cfg.WindowWidth, cfg.WindowHeight)
 	} else {

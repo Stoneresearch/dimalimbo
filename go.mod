@@ -3,6 +3,7 @@ module github.com/stoneresearch/dimalimbo
 go 1.23.3
 
 require (
+    github.com/joho/godotenv v1.5.1
 	github.com/hajimehoshi/ebiten/v2 v2.8.8
 	golang.org/x/image v0.29.0
 	modernc.org/sqlite v1.39.0

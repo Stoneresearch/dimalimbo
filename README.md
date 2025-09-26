@@ -32,6 +32,46 @@ GOOS=js GOARCH=wasm go build -o dist/dimalimbo.wasm ./cmd/dimalimbo
 
 Serve `dist/` statically (any HTTP server). The loader in `web/index.html` includes fallbacks for MIME/404 issues.
 
+### AI Backgrounds API
+
+Start the secure background API (reads `REPLICATE_API_TOKEN` from env):
+
+```bash
+go run ./cmd/bgserver
+```
+
+Request a new background (returns JSON with `url`):
+
+```bash
+curl -s -X POST http://localhost:8787/api/background \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"colorful adventurous synthwave space, cinematic, detailed","width":1600,"height":900}'
+```
+
+In `settings.json` set:
+
+```json
+{
+  "backgroundEndpoint": "http://localhost:8787/api/background",
+  "backgroundUrl": "" ,
+  "showGrid": false
+}
+```
+
+When `backgroundUrl` is empty, you can call the endpoint yourself and paste the returned `url` into settings.
+
+### GitHub Pages (CI/CD)
+
+This repo includes a workflow at `.github/workflows/gh-pages.yml` that:
+- Builds the WASM binary with the same steps above
+- Uploads `dist/` as an artifact
+- Publishes to GitHub Pages on pushes to `main`
+
+Checklist:
+- In repo settings, enable Pages with Source: GitHub Actions
+- Ensure `web/index.html` exists and references `dimalimbo.wasm` and `wasm_exec.js`
+- Push to `main` to trigger deploy
+
 ### Controls
 
 - Arrow keys / WASD / Gamepad: Move
@@ -50,6 +90,8 @@ Key options:
 - `postFXEnabled` (bool), `shaderIntensity` (float32)
 - `renderScale` (float64) – internal render scale for performance/clarity
 - `dbPath` (string) – SQLite file path
+- `musicStyle` (string) – `synthwave` or `classic`
+- `backgroundStyle` (string) – `neon_space` or `retro_mario`
 
 ### Troubleshooting
 
@@ -62,6 +104,10 @@ Key options:
 
 - Performance on low-end devices:
   - Reduce `renderScale` (e.g., 0.8) or enable `lowPower`.
+
+- Leaderboard empty:
+  - On web, scores are saved to `localStorage` after you submit a name. In name entry, press Enter/Space or tap.
+  - On desktop, ensure the process can write the `dimalimbo.db` file.
 
 - Database location:
   - A SQLite file `dimalimbo.db` is created next to your binary by default.
@@ -88,3 +134,4 @@ This repo ships a workflow that builds to `dist/` and deploys to Pages. On push 
 
 - Built with `github.com/hajimehoshi/ebiten/v2`
 - Fonts: Go Bold (title), Go Regular (UI)
+f

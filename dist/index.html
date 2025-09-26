@@ -6,31 +6,67 @@
     <title>DIMA LIMBO VOL.1</title>
     <style>
       html, body { height: 100%; margin: 0; background: #0a0b10; color: #e6e6e6; font-family: system-ui, sans-serif; }
-      #root { display: grid; place-items: center; height: 100%; }
+      #root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+      /* Ensure Ebiten canvas fills the viewport while preserving pixel look */
+      #ebiten-canvas { width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; }
       canvas { image-rendering: pixelated; }
       .loading { opacity: .8; font-size: 14px; }
       a { color: #8be9fd; }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div class="loading">Loading DIMA LIMBO VOL.1...</div>
+    <div id="root"><div class="loading">Loading DIMA LIMBO VOL.1...</div></div>
+    <div id="orientation-hint" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1;color:#e6e6e6;font-family:system-ui,sans-serif;background:rgba(10,11,16,.0);pointer-events:none;">
+      <div style="text-align:center;opacity:.85">Rotate your device for a better experience</div>
     </div>
     <script src="wasm_exec.js"></script>
     <script>
-      if (!WebAssembly.instantiateStreaming) {
-        WebAssembly.instantiateStreaming = async (resp, importObject) => {
-          const source = await (await resp).arrayBuffer();
-          return await WebAssembly.instantiate(source, importObject);
-        };
-      }
-      const go = new Go();
-      WebAssembly.instantiateStreaming(fetch("dimalimbo.wasm"), go.importObject)
-        .then(result => go.run(result.instance))
-        .catch(err => {
-          document.getElementById('root').innerHTML = `<div>WebAssembly failed to load. ${String(err)}<br/>Try a modern browser (Chrome/Firefox/Safari).</div>`;
+      (async () => {
+        try {
+          if (!('WebAssembly' in window)) {
+            throw new Error('WebAssembly not supported in this browser');
+          }
+          // Polyfill instantiateStreaming if server doesn't set correct MIME type
+          if (!WebAssembly.instantiateStreaming) {
+            WebAssembly.instantiateStreaming = async (resp, importObject) => {
+              const source = await (await resp).arrayBuffer();
+              return await WebAssembly.instantiate(source, importObject);
+            };
+          }
+          const go = new Go();
+          const wasmUrl = 'dimalimbo.wasm';
+          // HEAD first to detect 404 early and provide better error
+          const head = await fetch(wasmUrl, { method: 'HEAD' });
+          if (!head.ok) {
+            throw new Error(`WASM not found (${head.status}). Ensure ${wasmUrl} is deployed alongside index.html`);
+          }
+          const result = await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject).catch(async e => {
+            // Fallback to arrayBuffer path (e.g., wrong MIME type on GH Pages)
+            console.warn('instantiateStreaming failed, retrying with arrayBuffer', e);
+            const res = await fetch(wasmUrl);
+            if (!res.ok) throw new Error(`Failed fetching WASM: ${res.status}`);
+            const bytes = await res.arrayBuffer();
+            return await WebAssembly.instantiate(bytes, go.importObject);
+          });
+          // Remove loading overlay so canvas can receive input
+          const root = document.getElementById('root');
+          if (root) root.style.display = 'none';
+          // Orientation hint
+          const hint = document.getElementById('orientation-hint');
+          const updateHint = () => {
+            const portrait = window.matchMedia('(orientation: portrait)').matches;
+            hint.style.display = portrait ? 'flex' : 'none';
+          };
+          updateHint();
+          window.addEventListener('resize', updateHint);
+          await go.run(result.instance);
+        } catch (err) {
+          const msg = `WebAssembly failed to load: ${String(err)}<br/>`+
+            `If this is GitHub Pages, verify that index.html, wasm_exec.js, and dimalimbo.wasm are in the same folder.`;
+          document.getElementById('root').innerHTML = `<div class="loading">${msg}</div>`;
           console.error(err);
-        });
+        }
+      })();
     </script>
   </body>
   </html>

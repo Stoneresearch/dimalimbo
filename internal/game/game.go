@@ -1,9 +1,13 @@
 package game
 
 import (
+	"bytes"
+	"encoding/json"
 	"image/color"
+	"io"
 	"math"
 	"math/rand"
+	"net/http"
 	"strings"
 	"time"
 
@@ -62,6 +66,7 @@ type Game struct {
 	seeded    bool
 	// visuals/audio
 	offscreen *ebiten.Image
+	bgImage   *ebiten.Image
 	shader    *ebiten.Shader
 	shaderOn  bool
 	shaderInt float32
@@ -71,6 +76,10 @@ type Game struct {
 	starsNear []rectangle
 	// particles
 	particles []particle
+	// ambience
+	shooters []shootingStar
+	// satellites
+	satellites []satellite
 	// difficulty
 	speed      float64
 	spawnEvery int
@@ -89,6 +98,23 @@ type particle struct {
 	life int
 }
 
+type shootingStar struct {
+	x    float64
+	y    float64
+	vx   float64
+	vy   float64
+	life int
+}
+
+type satellite struct {
+	x     float64
+	y     float64
+	spin  float64
+	vel   float64
+	size  float64
+	glowA uint8
+}
+
 func New(store *storage.Storage, cfg settings.Settings) *Game {
 	g := &Game{
 		state:      stateTitle,
@@ -102,6 +128,9 @@ func New(store *storage.Storage, cfg settings.Settings) *Game {
 		speed:      cfg.BaseSpeed,
 		spawnEvery: cfg.SpawnEveryStart,
 		cfg:        cfg,
+	}
+	if g.audio != nil {
+		g.audio.SetStyle(cfg.MusicStyle)
 	}
 	// init parallax stars
 	for i := 0; i < 64; i++ {
@@ -157,15 +186,87 @@ func (g *Game) Update() error {
 		rand.Seed(time.Now().UnixNano())
 		g.seeded = true
 		g.leaders, _ = g.store.TopWinners(g.cfg.TopN)
+		// auto-fetch background if endpoint provided
+		if g.cfg.BackgroundURL == "" && g.cfg.BackgroundEndpoint != "" {
+			go func(ep string) {
+				req := map[string]any{"prompt": "colorful adventurous synthwave space, cinematic, detailed", "width": 1600, "height": 900}
+				b, _ := json.Marshal(req)
+				resp, err := http.Post(ep, "application/json", bytes.NewReader(b))
+				if err == nil && resp.StatusCode < 300 {
+					var r struct {
+						URL string `json:"url"`
+					}
+					_ = json.NewDecoder(resp.Body).Decode(&r)
+					resp.Body.Close()
+					if r.URL != "" {
+						g.cfg.BackgroundURL = r.URL
+					}
+				}
+			}(g.cfg.BackgroundEndpoint)
+		}
 	}
+
+	// fullscreen toggle
+	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
+		ebiten.SetFullscreen(!ebiten.IsFullscreen())
+	}
+	// mute toggle
+	if inpututil.IsKeyJustPressed(ebiten.KeyM) {
+		if g.audio != nil {
+			g.audio.ToggleMute()
+		}
+	}
+
+	// occasional shooting stars
+	if rand.Intn(120) == 0 {
+		g.shooters = append(g.shooters, shootingStar{
+			x:    float64(screenWidth + 20),
+			y:    float64(40 + rand.Intn(160)),
+			vx:   -3.2 - rand.Float64()*2.0,
+			vy:   0.7 + rand.Float64()*0.6,
+			life: 160,
+		})
+	}
+	aliveS := g.shooters[:0]
+	for _, s := range g.shooters {
+		s.x += s.vx
+		s.y += s.vy
+		s.life--
+		if s.life > 0 && s.x > -40 && s.y < float64(screenHeight-40) {
+			aliveS = append(aliveS, s)
+		}
+	}
+	g.shooters = aliveS
+
+	// spawn satellites (parallax foreground)
+	if rand.Intn(180) == 0 {
+		g.satellites = append(g.satellites, satellite{
+			x:     float64(screenWidth + 40),
+			y:     float64(40 + rand.Intn(screenHeight/2)),
+			spin:  rand.Float64() * math.Pi,
+			vel:   0.9 + rand.Float64()*0.6,
+			size:  10 + rand.Float64()*10,
+			glowA: 160,
+		})
+	}
+	aliveSat := g.satellites[:0]
+	for _, s := range g.satellites {
+		s.x -= s.vel
+		s.spin += 0.02
+		if s.x > -40 {
+			aliveSat = append(aliveSat, s)
+		}
+	}
+	g.satellites = aliveSat
 
 	switch g.state {
 	case stateTitle:
-		if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || inpututil.IsGamepadButtonJustPressed(0, ebiten.GamepadButton0) {
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || len(ebiten.TouchIDs()) > 0 || inpututil.IsGamepadButtonJustPressed(0, ebiten.GamepadButton0) {
 			g.resetPlay()
 			g.state = statePlaying
-			if g.audio != nil {
+			if g.audio != nil && g.cfg.MusicEnabled {
 				g.audio.PlayStart()
+				g.audio.PlayMusic()
 			}
 		}
 	case statePlaying:
@@ -290,7 +391,8 @@ func (g *Game) Update() error {
 		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) && len(g.nameInput) > 0 {
 			g.nameInput = g.nameInput[:len(g.nameInput)-1]
 		}
-		if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		// submit on Enter/Space or tap/click release to avoid accidental holds
+		if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || len(ebiten.TouchIDs()) == 0 {
 			name := strings.TrimSpace(g.nameInput)
 			if name == "" {
 				name = "PLAYER"
@@ -331,8 +433,49 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.offscreen == nil || g.offscreen.Bounds().Dx() != ow || g.offscreen.Bounds().Dy() != oh {
 		g.offscreen = ebiten.NewImage(ow, oh)
 	}
-	// modernized background tint
-	g.offscreen.Fill(color.RGBA{R: 8, G: 10, B: 18, A: 255})
+	// background by style
+	switch g.cfg.BackgroundStyle {
+	case "neon_space":
+		g.offscreen.Fill(color.RGBA{R: 14, G: 16, B: 24, A: 255})
+	case "retro_mario":
+		// bright sky with gradient bands
+		g.offscreen.Fill(color.RGBA{R: 110, G: 170, B: 255, A: 255})
+		// simple ground strip
+		ebitenutil.DrawRect(g.offscreen, 0, float64(oh)-60, float64(ow), 60, color.RGBA{R: 80, G: 180, B: 100, A: 255})
+		// decorative hills
+		for i := 0; i < 6; i++ {
+			x := float64(i*ow/6 + 20)
+			ebitenutil.DrawRect(g.offscreen, x, float64(oh)-90, 60, 30, color.RGBA{R: 70, G: 160, B: 90, A: 255})
+		}
+	default:
+		g.offscreen.Fill(color.RGBA{R: 14, G: 16, B: 24, A: 255})
+	}
+
+	// External background image (AI-generated via URL) if provided
+	if g.cfg.BackgroundURL != "" {
+		if g.bgImage == nil {
+			if resp, err := http.Get(g.cfg.BackgroundURL); err == nil {
+				if data, err := io.ReadAll(resp.Body); err == nil {
+					img, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(data))
+					if img != nil {
+						g.bgImage = img
+					}
+				}
+				_ = resp.Body.Close()
+			}
+		}
+		if g.bgImage != nil {
+			opBG := &ebiten.DrawImageOptions{}
+			sx := float64(ow) / float64(g.bgImage.Bounds().Dx())
+			sy := float64(oh) / float64(g.bgImage.Bounds().Dy())
+			opBG.GeoM.Scale(sx, sy)
+			g.offscreen.DrawImage(g.bgImage, opBG)
+		}
+	}
+
+	// camera sway
+	swayX := math.Sin(float64(g.frames)*0.01) * 2.0
+	swayY := math.Cos(float64(g.frames)*0.013) * 1.0
 
 	// parallax background
 	stepFar := 1
@@ -347,7 +490,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			s.x = float64(ow)
 			s.y = float64(rand.Intn(oh))
 		}
-		ebitenutil.DrawRect(g.offscreen, s.x, s.y, s.w, s.h, color.RGBA{40, 40, 60, 255})
+		// twinkle
+		tw := uint8(180 + 70*math.Sin(float64(g.frames+i)*0.05))
+		ebitenutil.DrawRect(g.offscreen, s.x+swayX*0.3, s.y+swayY*0.2, s.w, s.h, color.RGBA{tw, tw, 220, 255})
 	}
 	for i := 0; i < len(g.starsNear); i += stepNear {
 		s := &g.starsNear[i]
@@ -356,7 +501,21 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			s.x = float64(ow)
 			s.y = float64(rand.Intn(oh))
 		}
-		ebitenutil.DrawRect(g.offscreen, s.x, s.y, s.w, s.h, color.RGBA{88, 88, 120, 255})
+		tw := uint8(200 + 55*math.Sin(float64(g.frames+i)*0.07))
+		ebitenutil.DrawRect(g.offscreen, s.x+swayX*0.6, s.y+swayY*0.4, s.w, s.h, color.RGBA{tw, 220, 255, 255})
+	}
+	// satellites with glow and rotation
+	for _, sat := range g.satellites {
+		// glow
+		ebitenutil.DrawRect(g.offscreen, sat.x-3, sat.y-3, sat.size+6, sat.size+6, color.RGBA{0, 80, 120, sat.glowA})
+		// body
+		ebitenutil.DrawRect(g.offscreen, sat.x, sat.y, sat.size, sat.size, color.RGBA{200, 230, 255, 255})
+		// solar panels (simple lines)
+		lx := sat.x - 8
+		rx := sat.x + sat.size + 8
+		cy := sat.y + sat.size/2
+		ebitenutil.DrawLine(g.offscreen, lx, cy-2, sat.x, cy-2, color.RGBA{120, 200, 255, 255})
+		ebitenutil.DrawLine(g.offscreen, sat.x+sat.size, cy-2, rx, cy-2, color.RGBA{120, 200, 255, 255})
 	}
 	// particle rendering (additive-ish)
 	for _, p := range g.particles {
@@ -367,17 +526,24 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		c := color.RGBA{R: 0, G: uint8(180 + rand.Intn(60)), B: 255, A: a}
 		ebitenutil.DrawRect(g.offscreen, p.x-1.5, p.y-1.5, 3, 3, c)
 	}
-	// 3D-ish ground grid (slight animation)
+	// shooting stars
+	for _, s := range g.shooters {
+		ebitenutil.DrawLine(g.offscreen, s.x, s.y, s.x-12, s.y-6, color.RGBA{200, 240, 255, 200})
+		ebitenutil.DrawRect(g.offscreen, s.x, s.y, 2, 2, color.RGBA{255, 255, 255, 255})
+	}
+	// 3D-ish ground grid (optional)
 	horizonY := float64(oh) * 0.65
 	wobble := math.Sin(float64(g.frames) * 0.02)
-	for i := 0; i < 12; i++ {
-		t := float64(i) / 11.0
-		x := t * float64(ow)
-		ebitenutil.DrawLine(g.offscreen, x, horizonY, x-80*(t-0.5+wobble*0.02), float64(oh), color.RGBA{36, 36, 70, 180})
-	}
-	for r := 0; r < 10; r++ {
-		y := horizonY + float64(r*r)*6 + wobble*2
-		ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{36, 36, 70, 160})
+	if g.cfg.ShowGrid {
+		for i := 0; i < 12; i++ {
+			t := float64(i) / 11.0
+			x := t * float64(ow)
+			ebitenutil.DrawLine(g.offscreen, x+swayX, horizonY+swayY, x-80*(t-0.5+wobble*0.02)+swayX, float64(oh), color.RGBA{36, 36, 70, 180})
+		}
+		for r := 0; r < 10; r++ {
+			y := horizonY + float64(r*r)*6 + wobble*2 + swayY
+			ebitenutil.DrawLine(g.offscreen, 0, y, float64(ow), y, color.RGBA{36, 36, 70, 160})
+		}
 	}
 
 	switch g.state {
@@ -468,27 +634,31 @@ func drawTitleUI(g *Game, dst *ebiten.Image) {
 	}
 	title := "DIMA LIMBO VOL.1"
 	runes := []rune(title)
-	spacing := 28
-	if face != basicfont.Face7x13 {
-		spacing = int(18 * g.cfg.UIScale)
+	// wider letter spacing
+	spacing := int(28 * g.cfg.UIScale)
+	if spacing < 22 {
+		spacing = 22
 	}
 	total := spacing * (len(runes) - 1)
 	startX := (screenWidth - total) / 2
-	baseY := (screenHeight * 28) / 100
-	amp := 24.0 * g.cfg.UIScale
-	n := float64(len(runes))
+	baseY := (screenHeight * 26) / 100
+	// curve radius and depth
+	radius := 260.0 * g.cfg.UIScale
+	depth := 6
 	for i, r := range runes {
-		t := float64(i) / math.Max(1, n-1)
-		angle := (t - 0.5) * math.Pi
-		y := baseY + int(math.Sin(angle)*amp)
+		t := float64(i) / float64(len(runes)-1)
+		angle := (t - 0.5) * 1.6 // stronger curve
 		x := startX + i*spacing
-		phase := float64(g.frames)/30.0 + t*2*math.Pi
-		cr := uint8(180 + 75*math.Sin(phase))
-		cg := uint8(180 + 75*math.Sin(phase+2.094))
-		cb := uint8(180 + 75*math.Sin(phase+4.188))
-		fg := color.RGBA{cr, cg, cb, 255}
-		shadow := color.RGBA{20, 20, 40, 200}
-		drawShadowedText(dst, face, string(r), x, y, fg, shadow)
+		y := baseY + int(math.Sin(angle)*radius*0.1)
+		// layered extrusion for 3D
+		for dz := depth; dz >= 0; dz-- {
+			off := float64(dz)
+			col := color.RGBA{uint8(30 + dz*4), uint8(50 + dz*6), uint8(80 + dz*8), 255}
+			drawShadowedText(dst, face, string(r), x+int(off), y+int(off), col, color.RGBA{0, 0, 0, 0})
+		}
+		phase := float64(g.frames)/24.0 + t*2*math.Pi
+		fg := color.RGBA{uint8(200 + 40*math.Sin(phase)), uint8(220), 255, 255}
+		drawShadowedText(dst, face, string(r), x, y, fg, color.RGBA{20, 20, 40, 200})
 	}
 	promptFace := basicfont.Face7x13
 	drawShadowedText(dst, promptFace, "Press SPACE to start", (screenWidth-220)/2, baseY+80, color.RGBA{180, 255, 220, 255}, color.RGBA{40, 40, 40, 255})
@@ -527,6 +697,7 @@ func drawNameEntryUI(g *Game, dst *ebiten.Image) {
 	}
 	drawShadowedText(dst, face, "Game Over! Enter your name:", baseX, 220, color.White, color.RGBA{40, 40, 40, 255})
 	drawShadowedText(dst, face, g.nameInput+"_", baseX+60, 264, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
+	drawShadowedText(dst, basicfont.Face7x13, "Press ENTER/SPACE or TAP to submit", baseX, 300, color.RGBA{200, 220, 200, 255}, color.RGBA{40, 40, 40, 255})
 }
 
 func drawLeaderboardUI(g *Game, dst *ebiten.Image) {
@@ -541,6 +712,7 @@ func drawLeaderboardUI(g *Game, dst *ebiten.Image) {
 	drawShadowedText(dst, face, "Leaderboard", titleX, 100, color.White, color.RGBA{40, 40, 40, 255})
 	if len(g.leaders) == 0 {
 		drawShadowedText(dst, face, "No scores yet.", titleX+20, 160, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
+		drawShadowedText(dst, basicfont.Face7x13, "Tip: After a run, type your name and press ENTER/SPACE or TAP", 120, 200, color.RGBA{190, 210, 190, 255}, color.RGBA{40, 40, 40, 255})
 	} else {
 		for i, w := range g.leaders {
 			line := itoa(i+1) + ". " + w.Name + " - " + itoa(w.Score)

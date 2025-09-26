@@ -12,4 +12,7 @@
 .idea/
 .vscode/
 
+.env
+.env.Local
+
 

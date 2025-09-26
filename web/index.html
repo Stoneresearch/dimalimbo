@@ -8,15 +8,16 @@
       html, body { height: 100%; margin: 0; background: #0a0b10; color: #e6e6e6; font-family: system-ui, sans-serif; }
       #root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
       /* Ensure Ebiten canvas fills the viewport while preserving pixel look */
-      #ebiten-canvas { width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; }
+      #ebiten-canvas, canvas { width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; display: block; }
       canvas { image-rendering: pixelated; }
       .loading { opacity: .8; font-size: 14px; }
       a { color: #8be9fd; }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div class="loading">Loading DIMA LIMBO VOL.1...</div>
+    <div id="root"><div class="loading">Loading DIMA LIMBO VOL.1...</div></div>
+    <div id="orientation-hint" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1;color:#e6e6e6;font-family:system-ui,sans-serif;background:rgba(10,11,16,.0);pointer-events:none;">
+      <div style="text-align:center;opacity:.85">Rotate your device for a better experience</div>
     </div>
     <script src="wasm_exec.js"></script>
     <script>
@@ -47,6 +48,17 @@
             const bytes = await res.arrayBuffer();
             return await WebAssembly.instantiate(bytes, go.importObject);
           });
+          // Remove loading overlay so canvas can receive input
+          const root = document.getElementById('root');
+          if (root) root.style.display = 'none';
+          // Orientation hint
+          const hint = document.getElementById('orientation-hint');
+          const updateHint = () => {
+            const portrait = window.matchMedia('(orientation: portrait)').matches;
+            hint.style.display = portrait ? 'flex' : 'none';
+          };
+          updateHint();
+          window.addEventListener('resize', updateHint);
           await go.run(result.instance);
         } catch (err) {
           const msg = `WebAssembly failed to load: ${String(err)}<br/>`+

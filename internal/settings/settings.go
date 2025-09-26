@@ -6,9 +6,15 @@ import (
 )
 
 type Settings struct {
-	MasterVolume    float64 `json:"masterVolume"`
-	ShaderIntensity float32 `json:"shaderIntensity"`
-	Palette         int     `json:"palette"`
+	MasterVolume       float64 `json:"masterVolume"`
+	ShaderIntensity    float32 `json:"shaderIntensity"`
+	Palette            int     `json:"palette"`
+	MusicStyle         string  `json:"musicStyle"`
+	MusicEnabled       bool    `json:"musicEnabled"`
+	BackgroundStyle    string  `json:"backgroundStyle"`
+	BackgroundURL      string  `json:"backgroundUrl"`
+	BackgroundEndpoint string  `json:"backgroundEndpoint"`
+	ShowGrid           bool    `json:"showGrid"`
 	// Window/Perf
 	Fullscreen    bool    `json:"fullscreen"`
 	WindowWidth   int     `json:"windowWidth"`
@@ -40,7 +46,13 @@ func Default() Settings {
 		MasterVolume:        0.25,
 		ShaderIntensity:     0.7,
 		Palette:             0,
-		Fullscreen:          false,
+		MusicStyle:          "synthwave",
+		MusicEnabled:        false,
+		BackgroundStyle:     "neon_space",
+		BackgroundURL:       "",
+		BackgroundEndpoint:  "",
+		ShowGrid:            false,
+		Fullscreen:          true,
 		WindowWidth:         1280,
 		WindowHeight:        960,
 		UIScale:             1.8,
@@ -57,7 +69,7 @@ func Default() Settings {
 		TopN:                10,
 		CacheTTLSeconds:     30,
 		DBPath:              "dimalimbo.db",
-		RenderScale:         0.9,
+		RenderScale:         1.0,
 		LowPower:            false,
 	}
 }
