@@ -38,6 +38,10 @@
     <script>
       const startGame = async () => {
         try {
+          // Show loading progress for mobile
+          const loadingDiv = document.querySelector('.loading');
+          loadingDiv.innerHTML = 'Loading game (17MB)...<br><small>This may take a moment on mobile</small>';
+          
           if (!('WebAssembly' in window)) {
             throw new Error('WebAssembly not supported in this browser');
           }
@@ -50,6 +54,10 @@
           }
           const go = new Go();
           const wasmUrl = 'dimalimbo.wasm';
+          
+          // Show progress for large download
+          loadingDiv.innerHTML = 'Downloading game...<br><small>17MB - Please wait</small>';
+          
           // HEAD first to detect 404 early and provide better error
           const head = await fetch(wasmUrl, { method: 'HEAD' });
           if (!head.ok) {
@@ -78,10 +86,12 @@
           window.addEventListener('resize', updateHint);
           await go.run(result.instance);
         } catch (err) {
-          const msg = `WebAssembly failed to load: ${String(err)}<br/>`+
-            `If this is GitHub Pages, verify that index.html, wasm_exec.js, and dimalimbo.wasm are in the same folder.`;
-          document.getElementById('root').innerHTML = `<div class="loading">${msg}</div>`;
-          console.error(err);
+          const msg = `Game failed to load: ${String(err)}<br/><br/>`+
+            `<strong>Mobile users:</strong> The game is 17MB and may not work on all mobile browsers.<br/>`+
+            `Try on desktop or a different browser.<br/><br/>`+
+            `<small>Technical: ${err.message}</small>`;
+          document.getElementById('root').innerHTML = `<div class="loading" style="max-width: 80%; line-height: 1.4;">${msg}</div>`;
+          console.error('DIMBO loading error:', err);
         }
       };
       // Start only when user clicks Play (reduces initial load and shows your hero art)
