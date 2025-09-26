@@ -433,22 +433,35 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.offscreen == nil || g.offscreen.Bounds().Dx() != ow || g.offscreen.Bounds().Dy() != oh {
 		g.offscreen = ebiten.NewImage(ow, oh)
 	}
-	// background by style
+	// LIMBO-inspired dark atmosphere
 	switch g.cfg.BackgroundStyle {
-	case "neon_space":
-		g.offscreen.Fill(color.RGBA{R: 14, G: 16, B: 24, A: 255})
-	case "retro_mario":
-		// bright sky with gradient bands
-		g.offscreen.Fill(color.RGBA{R: 110, G: 170, B: 255, A: 255})
-		// simple ground strip
-		ebitenutil.DrawRect(g.offscreen, 0, float64(oh)-60, float64(ow), 60, color.RGBA{R: 80, G: 180, B: 100, A: 255})
-		// decorative hills
-		for i := 0; i < 6; i++ {
-			x := float64(i*ow/6 + 20)
-			ebitenutil.DrawRect(g.offscreen, x, float64(oh)-90, 60, 30, color.RGBA{R: 70, G: 160, B: 90, A: 255})
+	case "limbo_forest":
+		// Dark forest atmosphere with layered silhouettes
+		g.offscreen.Fill(color.RGBA{R: 8, G: 8, B: 12, A: 255})
+		// Distant hills silhouette
+		for i := 0; i < 5; i++ {
+			alpha := uint8(15 + i*8)
+			height := float64(oh) * (0.6 + float64(i)*0.08)
+			ebitenutil.DrawRect(g.offscreen, 0, height, float64(ow), float64(oh)-height, color.RGBA{R: alpha, G: alpha, B: alpha + 5, A: 255})
+		}
+	case "limbo_industrial":
+		// Industrial wasteland
+		g.offscreen.Fill(color.RGBA{R: 12, G: 10, B: 8, A: 255})
+		// Factory silhouettes
+		for i := 0; i < 3; i++ {
+			x := float64(i*ow/3 + rand.Intn(50))
+			w := 40.0 + rand.Float64()*60
+			h := 80.0 + rand.Float64()*120
+			ebitenutil.DrawRect(g.offscreen, x, float64(oh)-h, w, h, color.RGBA{R: 20, G: 18, B: 16, A: 255})
 		}
 	default:
-		g.offscreen.Fill(color.RGBA{R: 14, G: 16, B: 24, A: 255})
+		// Classic LIMBO - pure darkness with subtle gradient
+		g.offscreen.Fill(color.RGBA{R: 8, G: 8, B: 12, A: 255})
+		// Subtle fog gradient from bottom
+		for y := 0; y < oh/3; y++ {
+			alpha := uint8(float64(y) / float64(oh/3) * 20)
+			ebitenutil.DrawRect(g.offscreen, 0, float64(oh-y), float64(ow), 1, color.RGBA{R: 15 + alpha/2, G: 15 + alpha/2, B: 18 + alpha, A: 255})
+		}
 	}
 
 	// External background image (AI-generated via URL) if provided
@@ -548,18 +561,27 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	switch g.state {
 	case statePlaying:
-		// player
-		// shadow
-		ebitenutil.DrawRect(g.offscreen, g.player.x+4, g.player.y+4, g.player.w, g.player.h, color.RGBA{0, 0, 0, 120})
-		// neon player with border
-		ebitenutil.DrawRect(g.offscreen, g.player.x-1, g.player.y-1, g.player.w+2, g.player.h+2, color.RGBA{0, 60, 80, 200})
-		ebitenutil.DrawRect(g.offscreen, g.player.x, g.player.y, g.player.w, g.player.h, color.RGBA{0, 255, 220, 255})
-		// obstacles
+		// LIMBO-style player - pure black silhouette
+		// Subtle glow behind player for visibility
+		ebitenutil.DrawRect(g.offscreen, g.player.x-2, g.player.y-2, g.player.w+4, g.player.h+4, color.RGBA{40, 40, 50, 60})
+		// Main player silhouette - completely black
+		ebitenutil.DrawRect(g.offscreen, g.player.x, g.player.y, g.player.w, g.player.h, color.RGBA{0, 0, 0, 255})
+
+		// LIMBO-style obstacles - dark threatening shapes
 		for _, o := range g.obstacles {
-			ebitenutil.DrawRect(g.offscreen, o.x+3, o.y+3, o.w, o.h, color.RGBA{0, 0, 0, 120})
-			// neon outline
-			ebitenutil.DrawRect(g.offscreen, o.x-1, o.y-1, o.w+2, o.h+2, color.RGBA{60, 0, 40, 200})
-			ebitenutil.DrawRect(g.offscreen, o.x, o.y, o.w, o.h, color.RGBA{255, 40, 140, 255})
+			// Subtle danger glow
+			ebitenutil.DrawRect(g.offscreen, o.x-1, o.y-1, o.w+2, o.h+2, color.RGBA{60, 20, 20, 80})
+			// Main obstacle - very dark gray with slight red tint (danger)
+			ebitenutil.DrawRect(g.offscreen, o.x, o.y, o.w, o.h, color.RGBA{25, 15, 15, 255})
+		}
+
+		// Atmospheric particles - minimal and dark
+		for _, p := range g.particles {
+			if p.life > 0 {
+				alpha := uint8(p.life * 3) // Much more subtle
+				size := 1.0
+				ebitenutil.DrawRect(g.offscreen, p.x-size/2, p.y-size/2, size, size, color.RGBA{80, 80, 90, alpha})
+			}
 		}
 	case stateTitle, stateNameEntry, stateLeaderboard:
 		// defer UI drawing to after post-processing
@@ -632,36 +654,39 @@ func drawTitleUI(g *Game, dst *ebiten.Image) {
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	title := "DIMA LIMBO VOL.1"
-	runes := []rune(title)
-	// wider letter spacing
-	spacing := int(28 * g.cfg.UIScale)
-	if spacing < 22 {
-		spacing = 22
-	}
-	total := spacing * (len(runes) - 1)
-	startX := (screenWidth - total) / 2
-	baseY := (screenHeight * 26) / 100
-	// curve radius and depth
-	radius := 260.0 * g.cfg.UIScale
-	depth := 6
-	for i, r := range runes {
-		t := float64(i) / float64(len(runes)-1)
-		angle := (t - 0.5) * 1.6 // stronger curve
-		x := startX + i*spacing
-		y := baseY + int(math.Sin(angle)*radius*0.1)
-		// layered extrusion for 3D
-		for dz := depth; dz >= 0; dz-- {
-			off := float64(dz)
-			col := color.RGBA{uint8(30 + dz*4), uint8(50 + dz*6), uint8(80 + dz*8), 255}
-			drawShadowedText(dst, face, string(r), x+int(off), y+int(off), col, color.RGBA{0, 0, 0, 0})
+
+	title := "LIMBO"
+
+	// Simple, clean LIMBO-style title - properly centered
+	titleWidth := len(title) * 8 * int(g.cfg.UIScale) // Rough estimate
+	centerX := screenWidth / 2
+	titleX := centerX - titleWidth/2
+	titleY := screenHeight / 3
+
+	// LIMBO-style title - subtle, not flashy
+	// Soft glow behind text
+	for dx := -2; dx <= 2; dx++ {
+		for dy := -2; dy <= 2; dy++ {
+			if dx != 0 || dy != 0 {
+				text.Draw(dst, title, face, titleX+dx, titleY+dy, color.RGBA{40, 40, 50, 30})
+			}
 		}
-		phase := float64(g.frames)/24.0 + t*2*math.Pi
-		fg := color.RGBA{uint8(200 + 40*math.Sin(phase)), uint8(220), 255, 255}
-		drawShadowedText(dst, face, string(r), x, y, fg, color.RGBA{20, 20, 40, 200})
 	}
-	promptFace := basicfont.Face7x13
-	drawShadowedText(dst, promptFace, "Press SPACE to start", (screenWidth-220)/2, baseY+80, color.RGBA{180, 255, 220, 255}, color.RGBA{40, 40, 40, 255})
+
+	// Main title - clean white text
+	text.Draw(dst, title, face, titleX, titleY, color.RGBA{200, 200, 200, 255})
+
+	// Subtitle
+	subtitle := "a dark journey"
+	subtitleWidth := len(subtitle) * 6
+	subtitleX := centerX - subtitleWidth/2
+	text.Draw(dst, subtitle, basicfont.Face7x13, subtitleX, titleY+60, color.RGBA{120, 120, 120, 200})
+
+	// Simple prompt - properly centered
+	prompt := "Press SPACE to begin"
+	promptWidth := len(prompt) * 6
+	promptX := centerX - promptWidth/2
+	text.Draw(dst, prompt, basicfont.Face7x13, promptX, titleY+120, color.RGBA{160, 160, 160, 180})
 }
 
 func drawHUDUI(g *Game, dst *ebiten.Image) {
@@ -669,21 +694,21 @@ func drawHUDUI(g *Game, dst *ebiten.Image) {
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	// responsive margins for small screens and measured spacing
-	left := 10
-	top := 28
-	if g.cfg.UIScale < 1.2 {
-		left = 6
-		top = 22
+
+	// LIMBO-style minimal HUD - properly positioned with responsive margins
+	margin := int(20 * g.cfg.UIScale)
+	if margin < 10 {
+		margin = 10
 	}
-	label := "Score:"
-	lb := text.BoundString(face, label)
-	labelW := lb.Dx()
-	if labelW < 0 {
-		labelW = 0
-	}
-	drawShadowedText(dst, face, label, left, top, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(dst, face, itoa(g.score), left+labelW+8, top, color.White, color.RGBA{40, 40, 40, 255})
+
+	top := margin + 10
+
+	// Simple score display - clean and readable
+	scoreText := "Score: " + itoa(g.score)
+	text.Draw(dst, scoreText, face, margin, top, color.RGBA{180, 180, 180, 255})
+
+	// Lives indicator (if we add lives later)
+	// Could show as subtle dots in the corner
 }
 
 func drawNameEntryUI(g *Game, dst *ebiten.Image) {
@@ -691,13 +716,34 @@ func drawNameEntryUI(g *Game, dst *ebiten.Image) {
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	baseX := 160
-	if g.cfg.UIScale < 1.2 {
-		baseX = 120
-	}
-	drawShadowedText(dst, face, "Game Over! Enter your name:", baseX, 220, color.White, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(dst, face, g.nameInput+"_", baseX+60, 264, color.RGBA{0, 255, 128, 255}, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(dst, basicfont.Face7x13, "Press ENTER/SPACE or TAP to submit", baseX, 300, color.RGBA{200, 220, 200, 255}, color.RGBA{40, 40, 40, 255})
+
+	centerX := screenWidth / 2
+	centerY := screenHeight / 2
+
+	// LIMBO-style game over screen - centered and atmospheric
+	gameOverText := "The journey ends..."
+	gameOverWidth := len(gameOverText) * 6
+	text.Draw(dst, gameOverText, face, centerX-gameOverWidth/2, centerY-60, color.RGBA{150, 150, 150, 255})
+
+	// Score display
+	scoreText := "Distance traveled: " + itoa(g.score)
+	scoreWidth := len(scoreText) * 6
+	text.Draw(dst, scoreText, basicfont.Face7x13, centerX-scoreWidth/2, centerY-20, color.RGBA{120, 120, 120, 200})
+
+	// Name input prompt
+	namePrompt := "Your name:"
+	namePromptWidth := len(namePrompt) * 6
+	text.Draw(dst, namePrompt, basicfont.Face7x13, centerX-namePromptWidth/2, centerY+20, color.RGBA{140, 140, 140, 255})
+
+	// Name input field - properly centered
+	nameDisplay := g.nameInput + "_"
+	nameWidth := len(nameDisplay) * 6
+	text.Draw(dst, nameDisplay, face, centerX-nameWidth/2, centerY+50, color.RGBA{180, 180, 180, 255})
+
+	// Instructions
+	instructions := "Press ENTER to continue"
+	instrWidth := len(instructions) * 5
+	text.Draw(dst, instructions, basicfont.Face7x13, centerX-instrWidth/2, centerY+100, color.RGBA{100, 100, 100, 200})
 }
 
 func drawLeaderboardUI(g *Game, dst *ebiten.Image) {
@@ -705,20 +751,36 @@ func drawLeaderboardUI(g *Game, dst *ebiten.Image) {
 	if face == nil {
 		face = basicfont.Face7x13
 	}
-	titleX := 300
-	if g.cfg.UIScale < 1.2 {
-		titleX = 260
-	}
-	drawShadowedText(dst, face, "Leaderboard", titleX, 100, color.White, color.RGBA{40, 40, 40, 255})
+
+	centerX := screenWidth / 2
+	startY := 120
+
+	// LIMBO-style leaderboard - properly centered
+	title := "Those who traveled far"
+	titleWidth := len(title) * 8
+	text.Draw(dst, title, face, centerX-titleWidth/2, startY, color.RGBA{160, 160, 160, 255})
+
 	if len(g.leaders) == 0 {
-		drawShadowedText(dst, face, "No scores yet.", titleX+20, 160, color.RGBA{200, 200, 220, 255}, color.RGBA{40, 40, 40, 255})
-		drawShadowedText(dst, basicfont.Face7x13, "Tip: After a run, type your name and press ENTER/SPACE or TAP", 120, 200, color.RGBA{190, 210, 190, 255}, color.RGBA{40, 40, 40, 255})
+		emptyText := "None have journeyed yet..."
+		emptyWidth := len(emptyText) * 6
+		text.Draw(dst, emptyText, basicfont.Face7x13, centerX-emptyWidth/2, startY+80, color.RGBA{100, 100, 100, 200})
 	} else {
+		// List entries - properly centered and spaced
 		for i, w := range g.leaders {
+			if i >= 10 {
+				break
+			}
+
 			line := itoa(i+1) + ". " + w.Name + " - " + itoa(w.Score)
-			drawShadowedText(dst, face, line, titleX-80, 160+(i*28), color.RGBA{220, 220, 220, 255}, color.RGBA{40, 40, 40, 255})
+			lineWidth := len(line) * 6
+			y := startY + 60 + (i * 25)
+
+			text.Draw(dst, line, basicfont.Face7x13, centerX-lineWidth/2, y, color.RGBA{140, 140, 140, 255})
 		}
 	}
-	drawShadowedText(dst, face, "R: reset leaderboard", titleX-20, 440, color.RGBA{180, 180, 220, 255}, color.RGBA{40, 40, 40, 255})
-	drawShadowedText(dst, face, "SPACE: title", titleX-20, 468, color.RGBA{200, 200, 200, 255}, color.RGBA{40, 40, 40, 255})
+
+	// Controls - properly positioned at bottom
+	controls := "R: reset    SPACE: return"
+	controlsWidth := len(controls) * 5
+	text.Draw(dst, controls, basicfont.Face7x13, centerX-controlsWidth/2, screenHeight-60, color.RGBA{100, 100, 100, 180})
 }

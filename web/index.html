@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DIMA LIMBO VOL.1</title>
+    <title>DIMBO</title>
     <style>
       html, body { height: 100%; margin: 0; background: #0a0b10; color: #e6e6e6; font-family: system-ui, sans-serif; }
       #root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
@@ -12,16 +12,29 @@
       canvas { image-rendering: pixelated; }
       .loading { opacity: .8; font-size: 14px; }
       a { color: #8be9fd; }
+      /* Splash */
+      #splash { position: fixed; inset: 0; display: grid; place-items: center; background: #000; z-index: 2; }
+      #splash .bg { position:absolute; inset:0; background: center/cover no-repeat url('hero.jpg'); filter: brightness(0.85); }
+      #splash .content { position:relative; text-align:center; }
+      #splash h1 { margin: 0 0 16px; letter-spacing: 4px; font-weight: 800; font-size: 40px; }
+      #play { padding: 12px 24px; border-radius: 999px; border: 0; background: linear-gradient(90deg,#8be9fd,#ff79c6); color:#0b0d14; font-weight:700; cursor:pointer; box-shadow:0 6px 24px rgba(0,0,0,.5); }
     </style>
   </head>
   <body>
-    <div id="root"><div class="loading">Loading DIMA LIMBO VOL.1...</div></div>
+    <div id="root"><div class="loading">Loading DIMBO...</div></div>
+    <div id="splash">
+      <div class="bg"></div>
+      <div class="content">
+        <h1>DIMBO</h1>
+        <button id="play">Play</button>
+      </div>
+    </div>
     <div id="orientation-hint" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1;color:#e6e6e6;font-family:system-ui,sans-serif;background:rgba(10,11,16,.0);pointer-events:none;">
       <div style="text-align:center;opacity:.85">Rotate your device for a better experience</div>
     </div>
     <script src="wasm_exec.js"></script>
     <script>
-      (async () => {
+      const startGame = async () => {
         try {
           if (!('WebAssembly' in window)) {
             throw new Error('WebAssembly not supported in this browser');
@@ -51,6 +64,8 @@
           // Remove loading overlay so canvas can receive input
           const root = document.getElementById('root');
           if (root) root.style.display = 'none';
+          const splash = document.getElementById('splash');
+          if (splash) splash.style.display = 'none';
           // Orientation hint
           const hint = document.getElementById('orientation-hint');
           const updateHint = () => {
@@ -66,7 +81,9 @@
           document.getElementById('root').innerHTML = `<div class="loading">${msg}</div>`;
           console.error(err);
         }
-      })();
+      };
+      // Start only when user clicks Play (reduces initial load and shows your hero art)
+      document.getElementById('play').addEventListener('click', startGame);
     </script>
   </body>
   </html>

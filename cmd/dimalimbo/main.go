@@ -17,15 +17,17 @@ func main() {
 		log.Fatalf("failed to initialize storage: %v", err)
 	}
 
+	// Use the original game as base
 	g := game.New(store, cfg)
-	// Force fullscreen at startup; user can toggle with F
+
+	// Setup window - keep your original simple approach
 	ebiten.SetFullscreen(cfg.Fullscreen)
 	if cfg.WindowWidth > 0 && cfg.WindowHeight > 0 {
 		ebiten.SetWindowSize(cfg.WindowWidth, cfg.WindowHeight)
 	} else {
 		ebiten.SetWindowSize(800, 600)
 	}
-	ebiten.SetWindowTitle("DIMA LIMBO VOL.1")
+	ebiten.SetWindowTitle("DIMBO")
 
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatalf("game exited with error: %v", err)

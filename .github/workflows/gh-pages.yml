@@ -21,8 +21,12 @@ jobs:
         run: |
           mkdir -p dist
           cp web/index.html dist/index.html
+          # copy web settings if present
+          if [ -f web/settings.json ]; then cp web/settings.json dist/settings.json; fi
           cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" dist/wasm_exec.js
           GOOS=js GOARCH=wasm go build -o dist/dimalimbo.wasm ./cmd/dimalimbo
+          # write CNAME if env DOMAIN provided
+          if [ -n "${{ secrets.PAGES_CUSTOM_DOMAIN }}" ]; then echo "${{ secrets.PAGES_CUSTOM_DOMAIN }}" > dist/CNAME; fi
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

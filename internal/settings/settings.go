@@ -48,7 +48,7 @@ func Default() Settings {
 		Palette:             0,
 		MusicStyle:          "synthwave",
 		MusicEnabled:        false,
-		BackgroundStyle:     "neon_space",
+		BackgroundStyle:     "limbo_forest", // LIMBO-inspired default
 		BackgroundURL:       "",
 		BackgroundEndpoint:  "",
 		ShowGrid:            false,
