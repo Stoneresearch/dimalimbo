@@ -1,56 +1,40 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-
-name: Deploy DIMBO Space Game to GitHub Pages
+name: Deploy LIMBO-Style Game
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
     steps:
       - uses: actions/checkout@v4
-      - name: Build Modern JavaScript Game
+      
+      - name: Build LIMBO Game
         run: |
-          echo "🕷️ Building DIMBO - Space Exploration Game"
           mkdir -p dist
+          cp web/index.html dist/
+          cp web/limbo3d.js dist/
+          cp web/dimbo-spider-logo.jpg dist/
+          cp web/settings.json dist/
+          echo "🎮 LIMBO-style game built"
           
-          # Copy all client-side game files
-          cp web/index.html dist/index.html
-          cp web/game.js dist/game.js
-          cp web/dimbo-spider-logo.jpg dist/dimbo-spider-logo.jpg
-          cp web/settings.json dist/settings.json
-          
-          echo "✅ Lightweight build completed!"
-          echo "📦 File sizes:"
-          ls -lh dist/
-          
-          echo "🚀 Total size is now under 1MB instead of 17MB!"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    concurrency:
-      group: "pages"
-      cancel-in-progress: false
-    steps:
+          
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
