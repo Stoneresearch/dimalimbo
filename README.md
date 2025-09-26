@@ -1,4 +1,4 @@
-## DIMA LIMBO VOL.1
+## DIMBO - A LIMBO-Inspired Journey
 
 High-speed arcade dodger built with Go and Ebitengine (Ebiten v2). Local leaderboard stored in SQLite with an in-memory TTL cache for fast reads. Web build ships as WASM.
 

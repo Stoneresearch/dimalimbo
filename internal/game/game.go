@@ -655,7 +655,7 @@ func drawTitleUI(g *Game, dst *ebiten.Image) {
 		face = basicfont.Face7x13
 	}
 
-	title := "LIMBO"
+	title := "DIMBO"
 
 	// Simple, clean LIMBO-style title - properly centered
 	titleWidth := len(title) * 8 * int(g.cfg.UIScale) // Rough estimate
@@ -676,7 +676,7 @@ func drawTitleUI(g *Game, dst *ebiten.Image) {
 	// Main title - clean white text
 	text.Draw(dst, title, face, titleX, titleY, color.RGBA{200, 200, 200, 255})
 
-	// Subtitle
+	// Subtitle - inspired by classic LIMBO
 	subtitle := "a dark journey"
 	subtitleWidth := len(subtitle) * 6
 	subtitleX := centerX - subtitleWidth/2

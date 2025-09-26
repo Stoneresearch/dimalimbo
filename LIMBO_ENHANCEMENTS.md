@@ -1,6 +1,6 @@
-# LIMBO-Inspired Enhancements
+# DIMBO - LIMBO-Inspired Enhancements
 
-Your DIMBO game has been enhanced to capture the **dark, atmospheric essence** of the classic LIMBO game while fixing all positioning issues.
+Your **DIMBO** game has been enhanced to capture the **dark, atmospheric essence** of the classic LIMBO game while fixing all positioning issues.
 
 ## 🎯 What Was Fixed
 
@@ -31,11 +31,12 @@ Three LIMBO-inspired environments:
 - Flashy 3D text effects with curves and extrusion
 - Complex animations and bright particles
 
-### After (LIMBO-Style)
+### After (DIMBO's LIMBO-Style)
 - **Pure black player silhouette** (`color.RGBA{0, 0, 0, 255}`)
 - **Dark gray obstacles** with subtle red danger glow
-- **Clean, centered text** with soft atmospheric glow
+- **Clean, centered "DIMBO" title** with soft atmospheric glow
 - **Minimal particles** with muted colors
+- **Your spider logo** as the web splash screen background
 
 ## 🎮 Preserved Original Features
 

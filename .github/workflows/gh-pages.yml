@@ -23,10 +23,12 @@ jobs:
           cp web/index.html dist/index.html
           # copy web settings if present
           if [ -f web/settings.json ]; then cp web/settings.json dist/settings.json; fi
+          # copy spider logo if present
+          if [ -f web/dimbo-spider-logo.jpg ]; then cp web/dimbo-spider-logo.jpg dist/dimbo-spider-logo.jpg; fi
           cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" dist/wasm_exec.js
           GOOS=js GOARCH=wasm go build -o dist/dimalimbo.wasm ./cmd/dimalimbo
-          # write CNAME if env DOMAIN provided
-          if [ -n "${{ secrets.PAGES_CUSTOM_DOMAIN }}" ]; then echo "${{ secrets.PAGES_CUSTOM_DOMAIN }}" > dist/CNAME; fi
+          # write CNAME if custom domain variable provided
+          if [ -n "${{ vars.PAGES_CUSTOM_DOMAIN }}" ]; then echo "${{ vars.PAGES_CUSTOM_DOMAIN }}" > dist/CNAME; fi
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
