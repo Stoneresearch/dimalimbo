@@ -1,4 +1,6 @@
-name: Deploy Web (WASM) to GitHub Pages
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Deploy DIMBO Space Game to GitHub Pages
 
 on:
   push:
@@ -14,21 +16,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.3'
-      - name: Build WASM
+      - name: Build Modern JavaScript Game
         run: |
+          echo "🕷️ Building DIMBO - Space Exploration Game"
           mkdir -p dist
+          
+          # Copy all client-side game files
           cp web/index.html dist/index.html
-          # copy web settings if present
-          if [ -f web/settings.json ]; then cp web/settings.json dist/settings.json; fi
-          # copy spider logo if present
-          if [ -f web/dimbo-spider-logo.jpg ]; then cp web/dimbo-spider-logo.jpg dist/dimbo-spider-logo.jpg; fi
-          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" dist/wasm_exec.js
-          GOOS=js GOARCH=wasm go build -o dist/dimalimbo.wasm ./cmd/dimalimbo
+          cp web/game.js dist/game.js
+          cp web/dimbo-spider-logo.jpg dist/dimbo-spider-logo.jpg
+          cp web/settings.json dist/settings.json
+          
+          echo "✅ Lightweight build completed!"
+          echo "📦 File sizes:"
+          ls -lh dist/
+          
+          echo "🚀 Total size is now under 1MB instead of 17MB!"
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
@@ -38,9 +43,14 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 

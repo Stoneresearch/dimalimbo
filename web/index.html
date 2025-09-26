@@ -1,91 +1,278 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>DIMBO - A Dark Journey</title>
     <style>
-      html, body { height: 100%; margin: 0; background: #080808; color: #c0c0c0; font-family: system-ui, sans-serif; }
-      #root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-      /* Ensure Ebiten canvas fills the viewport while preserving pixel look */
-      #ebiten-canvas, canvas { width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; display: block; }
-      canvas { image-rendering: pixelated; }
-      .loading { opacity: .8; font-size: 14px; }
-      a { color: #8be9fd; }
-      /* Splash */
-      #splash { position: fixed; inset: 0; display: grid; place-items: center; background: #0a0a0a; z-index: 2; }
-      #splash .bg { position:absolute; inset:0; background: center/contain no-repeat url('dimbo-spider-logo.jpg'); filter: brightness(0.9); }
-      #splash .content { position:relative; text-align:center; }
-      #splash h1 { margin: 0 0 16px; letter-spacing: 4px; font-weight: 800; font-size: 40px; }
-      #play { padding: 12px 24px; border-radius: 4px; border: 2px solid #404040; background: #1a1a1a; color: #c0c0c0; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.8); transition: all 0.3s; }
-      #play:hover { background: #2a2a2a; border-color: #606060; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #0a0a0a;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #e0e0e0;
+            touch-action: none;
+            user-select: none;
+        }
+        
+        /* Sophisticated splash screen with spider logo focus */
+        #splash {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 70%, #000 100%);
+            z-index: 100;
+            transition: opacity 0.8s ease-out;
+        }
+        
+        .spider-bg {
+            position: absolute;
+            inset: 0;
+            background: center/contain no-repeat url('dimbo-spider-logo.jpg');
+            filter: brightness(0.8) contrast(1.2);
+            opacity: 0.9;
+        }
+        
+        .splash-content {
+            position: relative;
+            text-align: center;
+            z-index: 3;
+            margin-top: 35vh;
+            animation: fadeInUp 1.2s ease-out;
+        }
+        
+        /* GTA-style animated button */
+        .enter-button {
+            padding: 18px 40px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(30,30,30,0.95) 0%, rgba(15,15,15,0.98) 100%);
+            color: #f0f0f0;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            box-shadow: 
+                0 8px 32px rgba(0,0,0,0.8),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px);
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            animation: buttonPulse 2.5s ease-in-out infinite;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .enter-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+        
+        .enter-button:hover {
+            transform: translateY(-3px);
+            border-color: #666;
+            box-shadow: 
+                0 12px 40px rgba(0,0,0,0.7),
+                0 0 20px rgba(255,255,255,0.1),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            animation: none;
+        }
+        
+        .enter-button:hover::before {
+            left: 100%;
+        }
+        
+        .enter-button:active {
+            transform: translateY(-1px);
+        }
+        
+        /* Loading state */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        
+        .loading-content {
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes buttonPulse {
+            0%, 100% {
+                box-shadow: 
+                    0 8px 32px rgba(0,0,0,0.8),
+                    inset 0 1px 0 rgba(255,255,255,0.1);
+            }
+            50% {
+                box-shadow: 
+                    0 8px 32px rgba(0,0,0,0.8),
+                    0 0 25px rgba(255,255,255,0.15),
+                    inset 0 1px 0 rgba(255,255,255,0.1);
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .splash-content {
+                margin-top: 45vh;
+            }
+            
+            .enter-button {
+                padding: 16px 32px;
+                font-size: 16px;
+            }
+        }
+        
+        @media (max-height: 600px) {
+            .splash-content {
+                margin-top: 25vh;
+            }
+        }
+        
+        /* Game canvas will be created by JavaScript */
+        #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: #0a0a0a;
+        }
     </style>
   </head>
   <body>
-    <div id="root"><div class="loading">Loading DIMBO...</div></div>
+    <!-- Splash Screen with Spider Logo -->
     <div id="splash">
-      <div class="bg"></div>
-      <div class="content">
-        <h1>DIMBO</h1>
-        <p style="margin: 0 0 24px; opacity: 0.7; font-size: 16px;">A dark journey awaits</p>
-        <button id="play">Enter the Darkness</button>
+        <div class="spider-bg"></div>
+        <div class="splash-content">
+            <button class="enter-button" id="enterGame">
+                Enter the Darkness
+            </button>
       </div>
     </div>
-    <div id="orientation-hint" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1;color:#e6e6e6;font-family:system-ui,sans-serif;background:rgba(10,11,16,.0);pointer-events:none;">
-      <div style="text-align:center;opacity:.85">Rotate your device for a better experience</div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div>Loading AI backgrounds...</div>
+        </div>
     </div>
-    <script src="wasm_exec.js"></script>
+    
+    <!-- Game Engine -->
+    <script src="game.js"></script>
+    
     <script>
-      const startGame = async () => {
-        try {
-          if (!('WebAssembly' in window)) {
-            throw new Error('WebAssembly not supported in this browser');
-          }
-          // Polyfill instantiateStreaming if server doesn't set correct MIME type
-          if (!WebAssembly.instantiateStreaming) {
-            WebAssembly.instantiateStreaming = async (resp, importObject) => {
-              const source = await (await resp).arrayBuffer();
-              return await WebAssembly.instantiate(source, importObject);
-            };
-          }
-          const go = new Go();
-          const wasmUrl = 'dimalimbo.wasm';
-          // HEAD first to detect 404 early and provide better error
-          const head = await fetch(wasmUrl, { method: 'HEAD' });
-          if (!head.ok) {
-            throw new Error(`WASM not found (${head.status}). Ensure ${wasmUrl} is deployed alongside index.html`);
-          }
-          const result = await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject).catch(async e => {
-            // Fallback to arrayBuffer path (e.g., wrong MIME type on GH Pages)
-            console.warn('instantiateStreaming failed, retrying with arrayBuffer', e);
-            const res = await fetch(wasmUrl);
-            if (!res.ok) throw new Error(`Failed fetching WASM: ${res.status}`);
-            const bytes = await res.arrayBuffer();
-            return await WebAssembly.instantiate(bytes, go.importObject);
-          });
-          // Remove loading overlay so canvas can receive input
-          const root = document.getElementById('root');
-          if (root) root.style.display = 'none';
-          const splash = document.getElementById('splash');
-          if (splash) splash.style.display = 'none';
-          // Orientation hint
-          const hint = document.getElementById('orientation-hint');
-          const updateHint = () => {
-            const portrait = window.matchMedia('(orientation: portrait)').matches;
-            hint.style.display = portrait ? 'flex' : 'none';
-          };
-          updateHint();
-          window.addEventListener('resize', updateHint);
-          await go.run(result.instance);
-        } catch (err) {
-          const msg = `WebAssembly failed to load: ${String(err)}<br/>`+
-            `If this is GitHub Pages, verify that index.html, wasm_exec.js, and dimalimbo.wasm are in the same folder.`;
-          document.getElementById('root').innerHTML = `<div class="loading">${msg}</div>`;
-          console.error(err);
+        // Enhanced splash screen interaction
+        document.getElementById('enterGame').addEventListener('click', function() {
+            // Smooth transition from splash to game
+            const splash = document.getElementById('splash');
+            const loading = document.getElementById('loadingOverlay');
+            
+            // Fade out splash
+            splash.style.opacity = '0';
+            loading.style.display = 'flex';
+            
+            setTimeout(() => {
+                splash.style.display = 'none';
+                loading.style.display = 'none';
+                // Game engine handles the rest
+            }, 1000);
+        });
+        
+        // Mobile-specific enhancements
+        if ('ontouchstart' in window) {
+            document.body.style.touchAction = 'none';
+            
+            // Prevent zoom on double tap
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function(event) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
         }
-      };
-      // Start only when user clicks Play (reduces initial load and shows your hero art)
-      document.getElementById('play').addEventListener('click', startGame);
+        
+        // Orientation handling for mobile
+        function handleOrientationChange() {
+            const hint = document.getElementById('orientationHint');
+            const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+            
+            if (window.innerHeight > window.innerWidth && window.innerWidth < 768) {
+                if (!hint) {
+                    const hintDiv = document.createElement('div');
+                    hintDiv.id = 'orientationHint';
+                    hintDiv.innerHTML = `
+                        <div style="
+                            position: fixed;
+                            inset: 0;
+                            background: rgba(0,0,0,0.9);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            z-index: 300;
+                            font-size: 16px;
+                            text-align: center;
+                            padding: 20px;
+                        ">
+                            📱 Please rotate your device<br>for the best gaming experience
+                        </div>
+                    `;
+                    document.body.appendChild(hintDiv);
+                }
+            } else if (hint) {
+                hint.remove();
+            }
+        }
+        
+        window.addEventListener('orientationchange', handleOrientationChange);
+        window.addEventListener('resize', handleOrientationChange);
+        handleOrientationChange();
     </script>
   </body>
   </html>

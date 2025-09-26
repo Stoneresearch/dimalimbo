@@ -12,13 +12,38 @@
       canvas { image-rendering: pixelated; }
       .loading { opacity: .8; font-size: 14px; }
       a { color: #8be9fd; }
-      /* Splash */
-      #splash { position: fixed; inset: 0; display: grid; place-items: center; background: #0a0a0a; z-index: 2; }
-      #splash .bg { position:absolute; inset:0; background: center/contain no-repeat url('dimbo-spider-logo.jpg'); filter: brightness(0.9); }
-      #splash .content { position:relative; text-align:center; }
-      #splash h1 { margin: 0 0 16px; letter-spacing: 4px; font-weight: 800; font-size: 40px; }
-      #play { padding: 12px 24px; border-radius: 4px; border: 2px solid #404040; background: #1a1a1a; color: #c0c0c0; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.8); transition: all 0.3s; }
-      #play:hover { background: #2a2a2a; border-color: #606060; }
+      /* Splash - Clean design focused on spider logo */
+      #splash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #0a0a0a; z-index: 2; }
+      #splash .bg { position: absolute; inset: 0; background: center/contain no-repeat url('dimbo-spider-logo.jpg'); filter: brightness(0.9); opacity: 0.8; }
+      #splash .content { position: relative; text-align: center; z-index: 3; margin-top: 40vh; }
+      
+      /* Animated button */
+      #play { 
+        padding: 16px 32px; 
+        border-radius: 6px; 
+        border: 2px solid #666; 
+        background: rgba(20,20,20,0.9); 
+        color: #e0e0e0; 
+        font-weight: 600; 
+        font-size: 16px;
+        cursor: pointer; 
+        box-shadow: 0 6px 20px rgba(0,0,0,.9); 
+        transition: all 0.4s ease;
+        backdrop-filter: blur(10px);
+        animation: pulse 2s infinite;
+      }
+      #play:hover { 
+        background: rgba(40,40,40,0.95); 
+        border-color: #999; 
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,.7);
+        animation: none;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,.9); }
+        50% { box-shadow: 0 6px 25px rgba(255,255,255,.1), 0 6px 20px rgba(0,0,0,.9); }
+      }
     </style>
   </head>
   <body>
@@ -26,8 +51,6 @@
     <div id="splash">
       <div class="bg"></div>
       <div class="content">
-        <h1>DIMBO</h1>
-        <p style="margin: 0 0 24px; opacity: 0.7; font-size: 16px;">A dark journey awaits</p>
         <button id="play">Enter the Darkness</button>
       </div>
     </div>
@@ -37,6 +60,13 @@
     <script src="wasm_exec.js"></script>
     <script>
       const startGame = async () => {
+        // Show loading immediately
+        const loadingDiv = document.querySelector('.loading');
+        const splashDiv = document.getElementById('splash');
+        splashDiv.style.display = 'none';
+        document.getElementById('root').style.display = 'flex';
+        loadingDiv.innerHTML = 'Loading DIMBO...<br><div style="margin-top:10px;font-size:12px;">Downloading game files...</div>';
+        
         try {
           if (!('WebAssembly' in window)) {
             throw new Error('WebAssembly not supported in this browser');

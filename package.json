@@ -1,0 +1,33 @@
+{
+  "name": "dimbo-game",
+  "version": "1.0.0",
+  "description": "DIMBO - A sophisticated mobile-first game with AI backgrounds",
+  "main": "web/api.js",
+  "scripts": {
+    "start": "node web/api.js",
+    "dev": "node web/api.js",
+    "build": "echo 'No build needed - pure JavaScript!'",
+    "deploy": "npm run build"
+  },
+  "keywords": [
+    "game",
+    "mobile",
+    "javascript",
+    "ai",
+    "limbo",
+    "replicate"
+  ],
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stoneresearch/dimalimbo.git"
+  },
+  "author": "stoneresearch",
+  "license": "MIT"
+}
