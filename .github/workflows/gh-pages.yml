@@ -1,4 +1,4 @@
-name: Deploy LIMBO-Style Game
+name: Deploy DIMBO to GitHub Pages
 
 on:
   push:
@@ -15,26 +15,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Build LIMBO Game
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Build Game
         run: |
           mkdir -p dist
           cp web/index.html dist/
+          cp web/game.js dist/
           cp web/limbo3d.js dist/
           cp web/dimbo-spider-logo.jpg dist/
           cp web/settings.json dist/
-          echo "🎮 LIMBO-style game built"
+          echo "✅ LIMBO 3D/4D Game built successfully!"
           
-      - name: Upload artifact
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload Pages
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
           
-      - name: Deploy to GitHub Pages
+      - name: Deploy to Pages
+        id: deployment
         uses: actions/deploy-pages@v4

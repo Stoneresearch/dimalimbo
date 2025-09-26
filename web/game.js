@@ -1,21 +1,37 @@
 /**
- * DIMBO - Modern Mobile Game Engine
- * GTA-style sophisticated game with AI backgrounds
- * Mobile-first, touch-responsive design
+ * DIMBO - Advanced 3D/4D LIMBO Engine
+ * GTA 7-style atmospheric game with professional 3D rendering
+ * LIMBO-inspired dark silhouette gameplay with advanced scoring
  */
 
 class DimboGame {
     constructor() {
         this.canvas = null;
-        this.ctx = null;
+        this.ctx = null; // 2D fallback
+        this.engine3d = null; // Advanced 3D/4D engine
         this.width = 0;
         this.height = 0;
         
         // Game state
         this.gameState = 'splash'; // splash, playing, paused, gameOver, leaderboard
         this.score = 0;
+        this.scoreMultiplier = 1.0;
+        this.maxMultiplier = 1.0;
+        this.styleScore = 0;
+        this.comboCount = 0;
         this.lives = 3;
         this.level = 1;
+        
+        // Advanced LIMBO atmosphere
+        this.atmosphereIntensity = 1.0;
+        this.fogDensity = 0.15;
+        this.shadowQuality = 'high';
+        this.limboMode = true; // Pure LIMBO aesthetic
+        
+        // Enhanced leaderboard system
+        this.leaderboard = this.loadLeaderboard();
+        this.currentRank = 0;
+        this.personalBest = this.getPersonalBest();
         
         // Player (LIMBO-style silhouette)
         this.player = {
@@ -60,18 +76,50 @@ class DimboGame {
         // Particle system for effects
         this.particles = [];
         
-        // Leaderboard (localStorage for mobile)
+        // Leaderboard (localStorage for mobile)  
         this.leaderboard = this.loadLeaderboard();
         
         this.init();
     }
     
-    init() {
-        this.setupCanvas();
-        this.setupEventListeners();
-        this.resize();
-        this.loadAIBackground();
-        this.gameLoop();
+    async init() {
+        console.log('🎮 Initializing LIMBO 3D/4D Engine...');
+        
+        try {
+            this.setupCanvas();
+            await this.initialize3DEngine();
+            this.setupEventListeners();
+            this.resize();
+            this.setupAdvancedLeaderboard();
+            this.loadAIBackground();
+            this.gameLoop();
+            
+            console.log('✅ LIMBO 3D Engine initialized successfully!');
+        } catch (error) {
+            console.warn('⚠️ 3D Engine failed, falling back to 2D:', error);
+            this.engine3d = null;
+            this.limboMode = false;
+            this.setupEventListeners();
+            this.resize();
+            this.gameLoop();
+        }
+    }
+    
+    async initialize3DEngine() {
+        if (!window.Limbo3DEngine) {
+            throw new Error('Limbo3D engine not loaded');
+        }
+        
+        this.engine3d = new window.Limbo3DEngine(this.canvas);
+        
+        // Configure LIMBO atmosphere
+        this.engine3d.fogDensity = this.fogDensity;
+        this.engine3d.ambientLight = [0.02, 0.02, 0.03]; // Very dark LIMBO ambient
+        this.engine3d.shadowIntensity = 0.95;
+        this.engine3d.bloomIntensity = 1.2;
+        this.engine3d.vignetteStrength = 0.8;
+        
+        console.log('🌟 Advanced 3D/4D LIMBO engine activated!');
     }
     
     setupCanvas() {
@@ -466,6 +514,174 @@ class DimboGame {
         } catch {
             return [];
         }
+    }
+    
+    saveLeaderboard() {
+        localStorage.setItem('dimbo_leaderboard', JSON.stringify(this.leaderboard));
+    }
+    
+    getPersonalBest() {
+        const saved = localStorage.getItem('dimbo-personal-best');
+        return saved ? parseInt(saved) : 0;
+    }
+    
+    setupAdvancedLeaderboard() {
+        console.log('🏆 Setting up advanced leaderboard system...');
+        this.createLeaderboardUI();
+        this.validateLeaderboard();
+        this.setupLiveScoringDisplay();
+    }
+    
+    createLeaderboardUI() {
+        // Advanced animated leaderboard with GTA 7 styling
+        const leaderboardHTML = `
+        <div id="advancedLeaderboard" class="advanced-leaderboard" style="display: none;">
+            <div class="leaderboard-header">
+                <h2>🏆 LIMBO LEGENDS</h2>
+                <div class="personal-best">Your Best: <span id="personalBest">${this.personalBest}</span></div>
+            </div>
+            <div class="leaderboard-content">
+                <div class="rankings" id="rankings"></div>
+                <div class="score-details">
+                    <div class="current-session">
+                        <h3>Current Session</h3>
+                        <div>Score: <span id="currentScore">0</span></div>
+                        <div>Multiplier: <span id="currentMultiplier">1.0x</span></div>
+                        <div>Style Bonus: <span id="styleBonus">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', leaderboardHTML);
+        
+        // Add GTA 7 styling
+        const style = document.createElement('style');
+        style.textContent = `
+        .advanced-leaderboard {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(10,10,15,0.98) 100%);
+            backdrop-filter: blur(20px); z-index: 1000; display: flex; flex-direction: column;
+            font-family: 'SF Pro Display', sans-serif; color: #e0e0e0;
+        }
+        .leaderboard-header { padding: 2rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .leaderboard-header h2 { font-size: 2.5rem; font-weight: 700; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        .ranking-item { display: flex; padding: 1rem; margin-bottom: 0.5rem; background: rgba(255,255,255,0.03); 
+                       border-radius: 8px; transition: all 0.3s ease; }
+        .ranking-item:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    validateLeaderboard() {
+        this.leaderboard = this.leaderboard.filter(entry => 
+            entry && typeof entry.score === 'number' && entry.score >= 0
+        );
+        this.leaderboard.sort((a, b) => b.score - a.score);
+        this.leaderboard = this.leaderboard.slice(0, 20);
+        this.saveLeaderboard();
+    }
+    
+    setupLiveScoringDisplay() {
+        const scoringOverlay = document.createElement('div');
+        scoringOverlay.id = 'liveScoringDisplay';
+        scoringOverlay.style.cssText = `
+            position: fixed; top: 20px; right: 20px; z-index: 50;
+            color: #ffffff; text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            font-size: 1.2rem; display: none;
+        `;
+        scoringOverlay.innerHTML = `
+            <div style="text-align: right;">
+                <div>Score: <span id="liveScore" style="font-weight: bold; color: #4CAF50;">0</span></div>
+                <div>Multiplier: <span id="liveMultiplier" style="color: #FF9800;">1.0x</span></div>
+            </div>
+        `;
+        document.body.appendChild(scoringOverlay);
+    }
+    
+    updateAdvancedScoring() {
+        // Enhanced scoring with multipliers
+        const basePoints = 10;
+        const styleBonus = this.calculateStyleBonus();
+        const totalPoints = (basePoints + styleBonus) * this.scoreMultiplier;
+        
+        this.score += Math.floor(totalPoints);
+        this.styleScore += styleBonus;
+        
+        // Update multiplier based on performance
+        if (styleBonus > 0) {
+            this.scoreMultiplier = Math.min(this.scoreMultiplier + 0.1, 3.0);
+            this.maxMultiplier = Math.max(this.maxMultiplier, this.scoreMultiplier);
+        }
+        
+        this.updateLiveScoreDisplay();
+    }
+    
+    calculateStyleBonus() {
+        // Calculate bonuses for near misses, speed, etc.
+        let bonus = 0;
+        if (this.nearMissDetected) {
+            bonus += 50;
+            this.nearMissDetected = false;
+        }
+        return bonus;
+    }
+    
+    updateLiveScoreDisplay() {
+        const liveScore = document.getElementById('liveScore');
+        const liveMultiplier = document.getElementById('liveMultiplier');
+        const scoringDisplay = document.getElementById('liveScoringDisplay');
+        
+        if (liveScore) liveScore.textContent = this.score.toLocaleString();
+        if (liveMultiplier) liveMultiplier.textContent = this.scoreMultiplier.toFixed(1) + 'x';
+        if (scoringDisplay && this.gameState === 'playing') {
+            scoringDisplay.style.display = 'block';
+        }
+    }
+    
+    showLeaderboard() {
+        this.updateLeaderboardDisplay();
+        const leaderboard = document.getElementById('advancedLeaderboard');
+        if (leaderboard) leaderboard.style.display = 'flex';
+    }
+    
+    updateLeaderboardDisplay() {
+        const rankings = document.getElementById('rankings');
+        if (rankings) {
+            rankings.innerHTML = '';
+            this.leaderboard.forEach((entry, index) => {
+                const rankItem = document.createElement('div');
+                rankItem.className = 'ranking-item';
+                rankItem.innerHTML = `
+                    <div style="width: 3rem; font-weight: bold;">#${index + 1}</div>
+                    <div style="flex: 1;">${entry.name || 'Player'}</div>
+                    <div style="font-weight: bold;">${entry.score.toLocaleString()}</div>
+                `;
+                rankings.appendChild(rankItem);
+            });
+        }
+    }
+    
+    saveScore(playerName) {
+        const entry = {
+            name: playerName || 'Player',
+            score: this.score,
+            date: new Date().toISOString(),
+            maxMultiplier: this.maxMultiplier,
+            styleScore: this.styleScore
+        };
+        
+        this.leaderboard.push(entry);
+        this.leaderboard.sort((a, b) => b.score - a.score);
+        this.leaderboard = this.leaderboard.slice(0, 20);
+        this.saveLeaderboard();
+        
+        if (this.score > this.personalBest) {
+            this.personalBest = this.score;
+            localStorage.setItem('dimbo-personal-best', this.score.toString());
+        }
+        
+        return this.leaderboard.indexOf(entry) + 1;
     }
     
     draw() {
