@@ -24,15 +24,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Build Game
+      - name: Build LIMBO 3D Game  
         run: |
           mkdir -p dist
+          echo "🎮 Building LIMBO 3D/4D JavaScript Engine..."
+          
+          # Copy ONLY the JavaScript version - NO WASM
           cp web/index.html dist/
           cp web/game.js dist/
           cp web/limbo3d.js dist/
           cp web/dimbo-spider-logo.jpg dist/
           cp web/settings.json dist/
+          
           echo "✅ LIMBO 3D/4D Game built successfully!"
+          echo "📦 JavaScript-only build (no WASM confusion):"
+          ls -la dist/
           
       - name: Setup Pages
         uses: actions/configure-pages@v4

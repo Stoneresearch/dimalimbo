@@ -198,9 +198,24 @@
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <div>Loading AI backgrounds...</div>
+            <div>Loading LIMBO 3D Engine...</div>
         </div>
     </div>
+    
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0a0a0a;
+        image-rendering: pixelated;
+        touch-action: none;
+        user-select: none;
+        z-index: 10;
+        display: none;
+    "></canvas>
     
     <!-- Game Engine -->
     <script src="limbo3d.js"></script>
