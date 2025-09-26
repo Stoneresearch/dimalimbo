@@ -643,11 +643,7 @@ func itoa(v int) string {
 	return string(b[i:])
 }
 
-// UI helpers for bold/outlined text (brutalist look)
-func drawShadowedText(dst *ebiten.Image, face font.Face, s string, x, y int, fg, shadow color.Color) {
-	text.Draw(dst, s, face, x+2, y+2, shadow)
-	text.Draw(dst, s, face, x, y, fg)
-}
+// UI helpers - removed unused drawShadowedText function
 
 func drawTitleUI(g *Game, dst *ebiten.Image) {
 	face := g.titleFace
